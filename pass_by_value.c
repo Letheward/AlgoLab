@@ -102,7 +102,7 @@ int main() {
     };
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < 1024 * 1024 * 1024; i++) {
+    for (int i = 0; i < 1024 * 1024 * 1; i++) {
         
         VA = v3_add(VA, VB);
         VA = v3_add(VA, VB);
