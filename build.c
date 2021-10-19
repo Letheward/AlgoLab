@@ -1,8 +1,13 @@
 /* 
 
-    Just copy this and run:
+    using this like a script:
     ~~~
     gcc build.c -o build && ./build
+    ~~~
+
+    just using it (after compiling):
+    ~~~
+    ./build
     ~~~
 
     typical "CMakeLists.txt" is ~2000 lines, "configure" is ~30000 lines (and written in bash)
@@ -55,7 +60,6 @@ char* source_files[] = {
     "const_is_better.c",
     "const_is_not_better.c",
     "file.c",
-    "geometric_algebra.c",
     "linear_algebra.c",
     "matrix.c",
     "parse.c",
@@ -80,9 +84,8 @@ void compile_and_run(Platform p, Compiler c, char* src) {
     char* cname = c.invoke_name;
     char* flags = c.flags;
 
-    // slow, but who cares
     int count = 2 + 10 + string_length(src) + string_length(px) + string_length(cname) + string_length(flags);
-    char* command = malloc(sizeof(char) * count); 
+    char* command = malloc(sizeof(char) * count); // slow, but who cares
 
     // get final command 
     sprintf(command, "%s %s %s && %sa%s", cname, flags, src, method, px);    
