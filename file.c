@@ -55,7 +55,7 @@ int main(int arg_count, char** args) {
     long long length = 0;
     unsigned char* file = load_file(name, &length);
     
-    printf("Length: %d\n", length);
+    printf("Length: %lld\n", length);
     printf("Content:\n");
     for (int i = 0; i < length; i++) {
         if (i % 16 == 0) printf("\n");
