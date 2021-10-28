@@ -28,7 +28,6 @@ Use `#define` to change version:
 
 
 
-
 /* ==== Hard Coded Version (for reference) ==== */
 #ifdef hardcoded_version
 
