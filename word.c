@@ -32,7 +32,7 @@ for (int i = 0; i < count; i++) {
 */
 
 
-/* ==== Bad recursive version ==== */
+/* ==== Bad (but fast, why?) recursive version ==== */
 
 /*
 
@@ -70,7 +70,7 @@ int main() {
     char s[] = "!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~";
     int count = sizeof(s) / sizeof(s[0]) - 1;
 
-    print_table(s, i, 1, count);
+    print_table(s, 1, 5, count);
 
     return 0;
 }
@@ -81,7 +81,7 @@ int main() {
 #include <stdlib.h>
 #include <string.h>
 
-
+// todo: improve performance
 // s: alphabet, w: word length
 void print_table(char* s, int w, int space) {
 
@@ -95,7 +95,7 @@ void print_table(char* s, int w, int space) {
     for (u64 i = 0; i < count; i++) {
         
         // inline get digits of i in our base
-        int indices[1024] = {0};
+        int indices[128] = {0};
         {
             u64 n = i;
             for (int j = w - 1; j >= 0; j--) {
