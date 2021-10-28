@@ -1,6 +1,10 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 /*
 
-=====================  Note  =========================
+## Note
 
 For large alphabet and long length (not too long, or you will get a 8G+ text file),
 use pipe to store the output to a file, like:
@@ -11,36 +15,54 @@ use pipe to store the output to a file, like:
 
 or you can use this to benchmark your terminal (cmd.exe and powershell will be extremely slow)
 
+Use `#define` to change version:
+
+- hardcoded_version
+- recursive_version
+- modulo_version
+- adder_version
+
 */
 
+#define adder_version
 
 
-/* ==== Hard Coded Version ==== */
 
-/*
-char s[] = "!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~";
-int count = sizeof(s) / sizeof(s[0]) - 1;
 
-for (int i = 0; i < count; i++) {
-    for (int j = 0; j < count; j++) {
-        for (int k = 0; k < count; k++) {
-            printf("%c%c%c  ", s[i], s[j], s[k]);
+/* ==== Hard Coded Version (for reference) ==== */
+#ifdef hardcoded_version
+
+void print_table(char* s, int dummy1, int dummy2) {
+    
+    int count = strlen(s);
+
+    for (int i = 0; i < count; i++) {
+        for (int j = 0; j < count; j++) {
+            for (int k = 0; k < count; k++) {
+                for (int l = 0; l < count; l++) {
+                    for (int m = 0; m < count; m++) {
+                        int indices[5] = {i, j, k, l, m};
+                        for (int n = 0; n < 5; n++) putchar(s[indices[n]]);
+                        for (int s = 0; s < 2; s++) putchar(' ');
+                    }
+                    putchar('\n');
+                }
+            }
         }
-        printf("\n");
     }
 }
-*/
+
+#endif
 
 
-/* ==== Bad (but fast, why?) recursive version ==== */
 
-/*
+/* ==== Bad (but fast) Recursive Version ==== */
+#ifdef recursive_version
 
 // wrapped array, allowing for pass by value and copying
 typedef struct {
     int data[128]; // too high may cause stack overflow!!!
 } Array;
-
 
 // recursive helper, don't use outside
 void _iter(char* s, int space, int x, int y, int layer, Array indices) {
@@ -60,28 +82,19 @@ void _iter(char* s, int space, int x, int y, int layer, Array indices) {
     }
 }
 
-void print_table(char* s, int space, int x, int y) {
+void print_table(char* s, int x, int space) {
+    int y = strlen(s);
     Array a = {0};
     _iter(s, space, x, y, x, a);
 }
 
-int main() {
-
-    char s[] = "!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~";
-    int count = sizeof(s) / sizeof(s[0]) - 1;
-
-    print_table(s, 1, 5, count);
-
-    return 0;
-}
-*/
+#endif
 
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-// todo: improve performance
+/* ==== Slow Modulo Version ==== */
+#ifdef modulo_version
+
 // s: alphabet, w: word length
 void print_table(char* s, int w, int space) {
 
@@ -112,11 +125,47 @@ void print_table(char* s, int w, int space) {
     putchar('\n');
 }
 
+#endif
+
+
+
+/* ==== Faster (and safer) Adder Version ==== */
+#ifdef adder_version
+
+// s: alphabet, w: word length
+void print_table(char* s, int w, int space) {
+
+    int base = strlen(s);
+    int digits[1024] = {0};
+
+    // if overflow at top digit then end
+    while (digits[w] == 0) {
+        
+        if  (digits[0] == 0)                putchar('\n');
+        for (int j = w - 1; j >= 0   ; j--) putchar(s[digits[j]]);
+        for (int j = 0    ; j < space; j++) putchar(' ');
+        
+        // inline adder in our base, note: little endian order!!!
+        digits[0]++;
+        for (int i = 0; i < w; i++) {
+            if (digits[i] >= base) {
+                digits[i] -= base;
+                digits[i + 1]++;
+            }
+        }
+    }
+
+    putchar('\n');
+}
+
+#endif
+
+
 
 int main() {
 
     char* s = "!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~";
-    print_table(s, 2, 2);
-
+    print_table(s, 5, 2);
+    
     return 0;
 }

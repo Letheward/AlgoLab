@@ -75,7 +75,7 @@ char* source_files[] = {
     "print.c",
     "probability.c",
     "tertian_walk.c",
-    "word.c", 
+    // "word.c", // too slow on some terminals (looking at you, Microsoft!)
 };
 
 
