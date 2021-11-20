@@ -60,7 +60,7 @@ Platform win = {
 
 Compiler gcc = {
     .invoke_name = "gcc",
-    .flags = "-std=c99 -pedantic -Wall -static"
+    .flags = "-std=c99 -pedantic -Wall -static -fopenmp"
 };
 
 char* source_files[] = {
@@ -75,6 +75,7 @@ char* source_files[] = {
     "print.c",
     "probability.c",
     "tertian_walk.c",
+    "string.c",
     // "word.c", // too slow on some terminals (looking at you, Microsoft!)
 };
 
