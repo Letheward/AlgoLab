@@ -47,7 +47,7 @@ String find(String a, String b) {
     return (String) {0};
 }
 
-// splic s by x, return an array of string view
+// split s by x, return an array of string view
 #define split_(s, x, count) split(s, _(x), count)
 #define split__(s, x, count) split(_(s), _(x), count)
 String* split(String s, String x, unsigned int* out_count) {
