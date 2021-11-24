@@ -14,6 +14,10 @@ unsigned char base64_table[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKL
 
 
 // convert null terminated ascii to String
+// note: this is the pain point of this approach, because C string literals
+// have C string semantics, not in our String semantic, so we have to write
+// a lot of macros to make APIs (kinda) easy to use, or we have to convert
+// back and forth all the time at runtime, which is worse than just use char*
 #define _(s) (String) {(unsigned char*) s, sizeof(s) - 1, 0} // compile time version, does this made the string twice?
 String string(char* s) {                                     // runtime version, note: will not alloc a new string
     unsigned int i = 0;
@@ -38,6 +42,17 @@ String temp(String s) {
     return s;
 }
 
+// compare strings by content, exact match
+#define equal_(a, b) equal(_(a), b)
+int equal(String a, String b) {
+    if (a.count != b.count) return 0;
+    for (unsigned int i = 0; i < a.count; i++) {
+        if (a.data[i] != b.data[i]) return 0; // todo: speed!!!
+    }
+    return 1;
+}
+
+
 
 
 String view(String s, int p) {
@@ -56,6 +71,43 @@ String concat(String a, String b) {
     return (String) {data, count, 0};
 }
 
+String concat_many(int count, ...) {
+    
+    String arg_strings[128];
+    {
+        va_list args;
+        va_start(args, count);
+        for (int i = 0; i < count; i++) arg_strings[i] = va_arg(args, String);
+        va_end(args);
+    }
+
+    unsigned int result_count = 0;
+    for (int i = 0; i < count; i++) {
+        result_count += arg_strings[i].count; // todo: solve overflow
+    }
+
+    unsigned char* data = malloc(sizeof(unsigned char) * result_count);
+    {
+        unsigned int counter = 0;
+        for (int i = 0; i < count; i++) {
+            String s = arg_strings[i];
+            for (int j = 0; j < s.count; j++) {
+                data[counter] = s.data[j];
+                counter++;
+            }
+        }
+    }
+
+    for (int i = 0; i < count; i++) {
+        if (arg_strings[i].is_temporary) string_free(arg_strings[i]);
+    }
+
+    return (String) {data, result_count, 0};
+}
+
+
+
+
 
 
 // find b in a, return string view (if not return NULL)
@@ -65,9 +117,9 @@ String find(String a, String b) {
     
     if (a.data == NULL || b.data == NULL) return (String) {0};
     
-    for (int i = 0; i < a.count; i++) {
+    for (unsigned int i = 0; i < a.count; i++) {
         if (a.data[i] == b.data[0]) {
-            for (int j = 0; j < b.count; j++) {
+            for (unsigned int j = 0; j < b.count; j++) {
                 if (a.data[i + j] != b.data[j]) goto next;
             }
             return view(a, i); 
@@ -79,6 +131,7 @@ String find(String a, String b) {
 }
 
 // split s by x, return an array of string view
+// todo: bug in print, "{}" will split to "{}"
 #define split_(s, x, count) split(s, _(x), count)
 #define split__(s, x, count) split(_(s), _(x), count)
 String* split(String s, String x, unsigned int* out_count) {
@@ -92,7 +145,7 @@ String* split(String s, String x, unsigned int* out_count) {
     while (current.data != NULL) {
         count++;
         String new = find(current, x);
-        if (!new.data) break;
+        if (equal(new, x)) {count++; break;} // todo: speed??
         current = view(new, x.count);
     };
 
@@ -110,30 +163,6 @@ String* split(String s, String x, unsigned int* out_count) {
     };
     
     return out;
-}
-
-// why is this slower?
-#define split_to_(s, x, out, count) split_to(s, _(x), out, count)
-#define split_to__(s, x, out, count) split_to(_(s), _(x), out, count)
-void split_to(String s, String x, String* out, unsigned int* out_count) {
-    
-    if (s.data == NULL || x.data == NULL) return;
-    
-    unsigned int count = 0;
-    
-    String current = s;
-    while (current.data != NULL) {
-        String new = find(current, x);
-        if (!new.data) {
-            out[count] = current;
-            break;
-        };
-        out[count] = (String) {current.data, new.data - current.data, 0};
-        current = view(new, x.count);
-        count++;
-    };
-
-    *out_count = count + 1;
 }
 
 #define join_(s, sep) join(s, sizeof(s) / sizeof(s[0]), _(sep))
@@ -173,8 +202,10 @@ String replace(String s, String a, String b) {
 // note: when use these format functions outside print(), 
 //       we will need manually free(), otherwise there'll be memory leak
 
+// todo: doesn't work on 0
 String format_s32(int value, int base) {
 
+    if (value == 0) return _("0"); // quick fix, is this fast?
     if (base < 2 || base > 64) return (String) {0};
 
     unsigned char digits[32] = {0};
@@ -215,7 +246,7 @@ void print(String s, ...) {
     if (!s.data) return;
     
     unsigned int chunk_count;
-    String* chunks = split_(s, "{}", &chunk_count); // todo: speed!!!
+    String* chunks = split_(s, "{}", &chunk_count); // todo: see split() bug, also speed
     
     if (!chunks) {
         for (int i = 0; i < s.count; i++) putchar(s.data[i]);
@@ -233,7 +264,7 @@ void print(String s, ...) {
     for (int i = 0; i < chunk_count; i++) {
         String c   = chunks[i];
         String arg = arg_strings[i]; // last one will be 0, thus not printing
-        for (int j = 0; j < c.count; j++) putchar(c.data[j]);
+        for (int j = 0; j < c.count;   j++) putchar(c.data[j]);
         for (int j = 0; j < arg.count; j++) putchar(arg.data[j]);
     }
 
@@ -258,9 +289,16 @@ void test() {
         String c = concat(a, b);
         
         print(temp(concat(a, b))); // auto free
-        
+
         print(view(c, 5));
         string_free(c);
+    }
+    {
+        String a = _("this is ");
+        String b = _("really a ");
+        String c = _("string\n");
+    
+        print(temp(concat_many(3, a, b, c)));
     }
     print__("\n");
 
@@ -276,16 +314,17 @@ void test() {
         };
 
         print(temp(join_(fruits, " | ")));
+        print__("\n");
     }
     {
         unsigned int count = 0;
         String s = _("Apple, Banana, Cherry, Orange, Pear");
-        String chunks[10] = {0};
-        split_to_(s, ", ", chunks, &count);
+        String* chunks = split_(s, ", ", &count);
         for (int i = 0; i < count; i++) {
             print(chunks[i]);
             print__("\n");
         }
+        free(chunks);
 
         print(temp(replace_(s, ", ", " - ")));
     }
@@ -314,9 +353,23 @@ void test_c() {
         char* c = malloc(sizeof(char) * (strlen(a) + strlen(b) + 1));
         strcpy(c, a);
         strcat(c, b);
-
+        
+        printf(c);
         printf(c + 5);
         free(c);
+    }
+    {
+        char* a = "this is ";
+        char* b = "really a ";
+        char* c = "string\n";
+
+        char* d = malloc(sizeof(char) * (strlen(a) + strlen(b) + strlen(c) + 1));
+        strcpy(d, a); 
+        strcat(d, b); 
+        strcat(d, c);
+
+        printf(d);
+        free(d); 
     }
     printf("\n");
 
@@ -350,6 +403,7 @@ void test_c() {
         
         printf(result);
         free(result);
+        printf("\n");
     }
     {
         char s[] = "Apple, Banana, Cherry, Orange, Pear"; 
@@ -393,8 +447,6 @@ void test_c() {
 }
 
 
-
-
 int main() {
 
     /*
@@ -403,7 +455,6 @@ int main() {
         // test_c();
     }
     */
-
 
     test();
     // test_c();
