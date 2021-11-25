@@ -17,7 +17,7 @@ unsigned char base64_table[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKL
 // note: this is the pain point of this approach, because C string literals
 // have C string semantics, not in our String semantic, so we have to write
 // a lot of macros to make APIs (kinda) easy to use, or we have to convert
-// back and forth all the time at runtime, which is worse than just use char*
+// back and forth all the time at runtime, which is worse than just using char*
 #define _(s) (String) {(unsigned char*) s, sizeof(s) - 1, 0} // compile time version, does this made the string twice?
 String string(char* s) {                                     // runtime version, note: will not alloc a new string
     unsigned int i = 0;
@@ -99,7 +99,7 @@ String concat_many(int count, ...) {
     }
 
     for (int i = 0; i < count; i++) {
-        if (arg_strings[i].is_temporary) string_free(arg_strings[i]);
+        if (arg_strings[i].is_temporary) free(arg_strings[i].data);
     }
 
     return (String) {data, result_count, 0};
@@ -202,17 +202,16 @@ String replace(String s, String a, String b) {
 // note: when use these format functions outside print(), 
 //       we will need manually free(), otherwise there'll be memory leak
 
-// todo: doesn't work on 0
 String format_s32(int value, int base) {
 
     if (value == 0) return _("0"); // quick fix, is this fast?
     if (base < 2 || base > 64) return (String) {0};
 
-    unsigned char digits[32] = {0};
-    int sign = (value >= 0);
+    unsigned char digits[32] = {0}; // todo: speed? just write it to the malloc() buffer?
+    int sign = value >> 31;
     int count;
     {
-        int temp = sign ? value : -value;
+        int temp = sign ? -value : value;
         for (count = 0; temp > 0; count++) {
             digits[count] = base64_table[temp % base]; // what about custom digits?
             temp /= base;
@@ -220,19 +219,60 @@ String format_s32(int value, int base) {
     }
 
     unsigned char* data = malloc(sizeof(unsigned char) * 32);
-    if (sign) {
-        for (int i = 0; i < count; i++) data[i] = digits[count - i - 1];
-    } else {
-        count++;
-        data[0] = '-';
-        for (int i = 1; i < count; i++) data[i] = digits[count - i - 1];
-    }
+    if (sign) {data[0] = '-'; count++;}
+    for (int i = sign ? 1 : 0; i < count; i++) data[i] = digits[count - i - 1];
 
     return (String) {data, count, 1};
 }
 
-String format_f32(float value, int digits) {
-    return (String) {0}; // this is harder
+// todo: accuracy issue, handle infinity and NaN
+String format_f32(float value) {
+
+    unsigned int data; 
+    {
+        unsigned int* p = (unsigned int*) &value; // workaround for aliasing warning
+        data = *p; 
+    }
+
+    // get data from IEEE 754 bits
+    int sign = (data >> 31);
+    int exp  = (data << 1 >> 24) - 127 - 23;
+    int frac = (data << 9 >> 9) | 0x800000; // add the implicit "1." in ".1010010"
+
+    unsigned long long int temp = frac * 1000000000000; // todo: accuracy 
+
+    if (exp < 0) for (int i = 0; i > exp; i--) temp /= 2;
+    else         for (int i = 0; i < exp; i++) temp *= 2;
+
+    unsigned char digits[64] = {0};
+    int count; // digit count
+    for (count = 0; temp > 0; count++) {
+        digits[count] = base64_table[temp % 10]; 
+        temp /= 10;
+    }
+    
+    unsigned char* result = malloc(sizeof(unsigned char) * 64);
+    unsigned int   result_count = 0;
+    
+    if (sign) result[0] = '-';
+    int dot_pos = count - 12; // todo: find out why it's 12
+    
+    if (dot_pos <= 0) {
+        result_count = count - dot_pos + 2 + sign;
+        result[sign    ] = '0'; 
+        result[sign + 1] = '.';
+        for (int i = 0; i < -dot_pos; i++) result[sign + 2 + i] = '0'; 
+        for (int i = 0; i < count; i++) {
+            result[sign - dot_pos + i + 2] = digits[count - i - 1]; 
+        }
+    } else {
+        result_count = count + sign + 1;
+        result[sign + dot_pos] = '.';
+        for (int i =       0; i < dot_pos; i++) result[sign + i    ] = digits[count - i - 1];
+        for (int i = dot_pos; i <   count; i++) result[sign + i + 1] = digits[count - i - 1];
+    }
+
+    return (String) {result, result_count, 1};
 }
 
 
@@ -246,7 +286,7 @@ void print(String s, ...) {
     if (!s.data) return;
     
     unsigned int chunk_count;
-    String* chunks = split_(s, "{}", &chunk_count); // todo: see split() bug, also speed
+    String* chunks = split_(s, "{}", &chunk_count); // todo: speed
     
     if (!chunks) {
         for (int i = 0; i < s.count; i++) putchar(s.data[i]);
@@ -269,8 +309,9 @@ void print(String s, ...) {
     }
 
     free(chunks);
+    if (s.is_temporary) free(s.data);
     for (int i = 0; i < chunk_count - 1; i++) {
-        if (arg_strings[i].is_temporary) string_free(arg_strings[i]);
+        if (arg_strings[i].is_temporary) free(arg_strings[i].data);
     }
 }
 
@@ -336,7 +377,7 @@ void test() {
         int    a = 42;
         float  b = 6.28;
         String c = _("I'm a string!!!");
-        print_("a is {}, b is {}, c is {}\n", format_s32(a, 10), format_f32(b, 6), c);
+        print_("a is {}, b is {}, c is {}\n", format_s32(a, 10), format_f32(b), c);
     }
     print__("\n");
 }
@@ -447,15 +488,18 @@ void test_c() {
 }
 
 
+
 int main() {
 
     /*
     for (int i = 0; i < 10000; i++) {
-        // test();
-        // test_c();
+        test();
+        test_c();
     }
     */
 
     test();
     // test_c();
+
+    return 0;
 }
