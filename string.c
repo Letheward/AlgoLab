@@ -3,6 +3,11 @@
 #include <stdarg.h>
 #include <string.h>
 
+
+
+
+/* ==== Data ==== */
+
 typedef struct {
     unsigned char* data;
     unsigned int   count;
@@ -13,11 +18,15 @@ unsigned char base64_table[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKL
 
 
 
-// convert null terminated ascii to String
+
+/* ==== Basic Utilities 1 ==== */
+
 // note: this is the pain point of this approach, because C string literals
 // have C string semantics, not in our String semantic, so we have to write
 // a lot of macros to make APIs (kinda) easy to use, or we have to convert
 // back and forth all the time at runtime, which is worse than just using char*
+
+// convert null terminated ascii to String
 #define _(s) (String) {(unsigned char*) s, sizeof(s) - 1, 0} // compile time version, does this made the string twice?
 String string(char* s) {                                     // runtime version, note: will not alloc a new string
     unsigned int i = 0;
@@ -37,6 +46,9 @@ String copy(String s) {
     return (String) {data, s.count, 0};
 }
 
+// mark a heap allocated String as temporary, 
+// useful for print() and concat_many(), etc
+// do not use this on static or stack allocated String!
 String temp(String s) {
     s.is_temporary = 1;
     return s;
@@ -55,6 +67,8 @@ int equal(String a, String b) {
 
 
 
+/* ==== Basic Utilities 2 ==== */
+
 String view(String s, int p) {
     if (p >= s.count) return (String) {0};
     return (String) {s.data + p, s.count - p, 0};
@@ -71,6 +85,7 @@ String concat(String a, String b) {
     return (String) {data, count, 0};
 }
 
+// note: will auto free temp String
 String concat_many(int count, ...) {
     
     String arg_strings[128];
@@ -108,7 +123,7 @@ String concat_many(int count, ...) {
 
 
 
-
+/* ==== Token Related Functions ==== */
 
 // find b in a, return string view (if not return NULL)
 #define find_(a, b) find(a, _(b))
@@ -131,7 +146,6 @@ String find(String a, String b) {
 }
 
 // split s by x, return an array of string view
-// todo: bug in print, "{}" will split to "{}"
 #define split_(s, x, count) split(s, _(x), count)
 #define split__(s, x, count) split(_(s), _(x), count)
 String* split(String s, String x, unsigned int* out_count) {
@@ -198,6 +212,9 @@ String replace(String s, String a, String b) {
 
 
 
+
+
+/* ==== Format and Print ==== */
 
 // note: when use these format functions outside print(), 
 //       we will need manually free(), otherwise there'll be memory leak
@@ -275,10 +292,8 @@ String format_f32(float value) {
     return (String) {result, result_count, 1};
 }
 
-
-
-
-// note: this will auto free string that is_allocated = 1
+// note: will auto free temp String
+// todo: replace putchar()
 #define print_(s, ...) print(_(s), __VA_ARGS__)
 #define print__(s) print(_(s), 0)
 void print(String s, ...) {
@@ -318,7 +333,8 @@ void print(String s, ...) {
 
 
 
-/* ==== Test ==== */
+
+/* ==== Tests ==== */
 
 void test() {
 
@@ -492,6 +508,13 @@ void test_c() {
 int main() {
 
     /*
+        quick speed test
+        String version slower at -O0, but faster in -O3
+        ~~~ sh
+        gcc string.c -std=c99 -Wall -pedantic -static -O3 && time ./a > temp
+        ~~~
+    */
+    /*    
     for (int i = 0; i < 10000; i++) {
         test();
         test_c();
