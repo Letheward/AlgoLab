@@ -66,8 +66,7 @@ Compiler gcc = {
 char* source_files[] = {
     "AoS_vs_SoA.c",
     "better_syntax.c",
-    "const_is_better.c",
-    "const_is_not_better.c",
+    "const.c",
     "file.c",
     "matrix.c",
     "parse.c",
@@ -77,6 +76,7 @@ char* source_files[] = {
     "tertian_walk.c",
     "string.c",
     "macro.c",
+    "base64.c",
     // "word.c", // too slow on some terminals (looking at you, Microsoft!)
 };
 

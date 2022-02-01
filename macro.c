@@ -67,8 +67,10 @@ Define_Matrix(4);
 Define_Array(u32);
 Define_Array(Array_u32); // cannot use nested array, there are maybe hacks to do this, but that lose the point
 
+/*/ 
 Array(Array_u32) make_nested() {
 }
+/*/
 
 Vector4 v4_make() {
     return (Vector4) {0};
