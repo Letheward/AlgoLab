@@ -83,27 +83,25 @@ String base64_encode(String in) {
     u64 j = 0;
     for (u64 i = 0; i < in.count; i += 3) {
         
-        u8 legal = i < in.count; // reject out of bound array read
+        u32 a = in.data[i    ];
+        u32 b = in.data[i + 1];
+        u32 c = in.data[i + 2];
 
-		u32 a = in.data[i];
-		u32 b = legal ? in.data[i + 1] : 0;
-		u32 c = legal ? in.data[i + 2] : 0;
+        u32 triple = (a << 16) + (b << 8) + c;
 
-		u32 triple = (a << 16) + (b << 8) + c;
-
-		data[j    ] = base64_table[(triple >> 18) & 0x3f];
-		data[j + 1] = base64_table[(triple >> 12) & 0x3f];
-		data[j + 2] = base64_table[(triple >>  6) & 0x3f];
-		data[j + 3] = base64_table[(triple      ) & 0x3f];
+        data[j    ] = base64_table[(triple >> 18) & 0x3f];
+        data[j + 1] = base64_table[(triple >> 12) & 0x3f];
+        data[j + 2] = base64_table[(triple >>  6) & 0x3f];
+        data[j + 3] = base64_table[(triple      ) & 0x3f];
 
         j += 4;
     }
 
-	// padding at the end
-	switch (in.count % 3) {
+    // padding at the end
+    switch (in.count % 3) {
         case 1: data[j - 2] = '=';
         case 2: data[j - 1] = '=';
-	}
+    }
 
     return (String) {data, count};
 }
