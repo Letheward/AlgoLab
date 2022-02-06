@@ -77,6 +77,7 @@ char* source_files[] = {
     "string.c",
     "macro.c",
     "base64.c",
+    "allocator.c",
     // "word.c", // too slow on some terminals (looking at you, Microsoft!)
 };
 
