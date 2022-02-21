@@ -1,3 +1,84 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+
+
+/* ==== Builtin Types ==== */
+
+typedef unsigned char           u8;
+typedef unsigned short int      u16;
+typedef unsigned int            u32;
+typedef unsigned long long int  u64;
+typedef signed char             s8;
+typedef signed short            s16;
+typedef signed int              s32;
+typedef signed long long int    s64;
+typedef float                   f32;
+typedef double                  f64;
+
+typedef struct {
+    u8* data;
+    u64 count;
+} String;
+
+
+
+/* ==== Macros ==== */
+
+#define length_of(array) (sizeof(array) / sizeof(array[0]))
+#define string(s) (String) {(u8*) s, sizeof(s) - 1}
+#define array(Type, array) (Array(Type)) {array, length_of(array)} // a little bit confusing
+
+#define Array(Type) Array_ ## Type
+#define Define_Array(Type) \
+typedef struct {           \
+    Type* data;            \
+    u64   count;           \
+} Array(Type)              \
+
+Define_Array(u64);
+Define_Array(String);
+
+#undef Define_Array
+
+
+
+
+
+/* ==== Generator Search ==== */
+
+void generator_search() {
+
+    printf("Generator Search:\n");
+
+    u64 primes[] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271};
+
+    u64 counter = 2;
+    while (1) {
+        
+        // u8 fail = 0;
+        for (u64 i = 0; i < length_of(primes); i++) {
+            u64 prime = primes[i];
+            if (prime >= (counter / 2)) break;
+            if (!(counter % prime == 0)) {
+                //printf("Fail %llu %llu\n", counter, prime);
+                goto failed; 
+            }
+        }
+    
+        printf("Found %llu\n", counter);
+
+        failed: 
+        if (counter == 1000000000) break; //printf("--- %llu ---\n", counter);
+        counter += 2;
+    }
+
+}
+
+
+
+/* ==== Tertian Walk (Need Refactoring) ==== */
+
 /* result
 
                       0
@@ -177,16 +258,7 @@ generate:
 
 generate
 
-*/ 
-
-#include <stdio.h>
-
-int num_list[12] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-int bin_list[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-int list_pos = 0;
-int num = 0;
-int bin = 0;
+*/
 
 /*
 void bin_print(bin) {
@@ -200,33 +272,18 @@ void bin_print(bin) {
 }
 */
 
+// todo: namespace these
 
-int repeat_check() {
-    int repeated = 0;
-    for (int i = 0; i < 11; i++) {
-        for (int j = i + 1; j < 12; j++) {
-            if (num_list[i] == num_list[j]) {
-                repeated = 1;
-                break;
-            }
-        }
-    }
-    return(repeated);
-}
+int num_list[12] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+int bin_list[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-void bin_add() {
-    bin += 1;
-    for (int bit = 12; bit >= 0; bit--) {
-        if (((bin >> bit) & 1) == 0) {
-            bin_list[11 - bit] = 0;
-        } else {
-            bin_list[11 - bit] = 1;
-        }
-    }
-}
+int list_pos = 0;
+int num = 0;
+int bin = 0;
+
+void generate() {
 
 
-int generate() {
     while (list_pos < 11) {
         if (bin_list[list_pos + 1] == 0) {
             num = (num + 3) % 12;
@@ -236,28 +293,56 @@ int generate() {
         num_list[list_pos + 1] = num;
         list_pos += 1;
     }
-    if (repeat_check() == 0) {
+
+
+    int repeated = 0;
+    for (int i = 0; i < 11; i++) {
+        for (int j = i + 1; j < 12; j++) {
+            if (num_list[i] == num_list[j]) {
+                repeated = 1;
+                break;
+            }
+        }
+    }
+
+    if (!repeated) {
         for (int i = 0; i < 12; i++) {
             printf("%i ", num_list[i]);
         }
         printf("\n");
     }
+    
     // for (int i = 0; i < 12; i++) {
     //     printf("%i ", num_list[i]);
     // }
     // printf("\n");
     num = 0;
     list_pos = 0;
-    bin_add(bin);
+
+    // bin_add(bin);
+    {
+        bin += 1;
+        for (int bit = 12; bit >= 0; bit--) {
+            if (((bin >> bit) & 1) == 0) {
+                bin_list[11 - bit] = 0;
+            } else {
+                bin_list[11 - bit] = 1;
+            }
+        }
+    }
+
+
     if (bin_list[0] == 1) {
-        return(0);
+        return;
     } else {
         generate();
     }
 }
 
+void tertian_walk() {
 
-void main() {
+    printf("Tertian Walk:\n");
+
     generate();
     // printf("%i", bin);
     // int s = 0;
@@ -271,4 +356,16 @@ void main() {
     // }
     // printf("\n");
     // bin_print(bin);
+}
+
+
+
+
+
+int main() {
+
+
+    generator_search();
+    tertian_walk();
+
 }

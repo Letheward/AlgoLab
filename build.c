@@ -73,11 +73,12 @@ char* source_files[] = {
     "pass_by_value.c",
     "print.c",
     "probability.c",
-    "tertian_walk.c",
     "string.c",
     "macro.c",
     "base64.c",
     "allocator.c",
+    "NoCS.c",
+    "sort.c",
     // "word.c", // too slow on some terminals (looking at you, Microsoft!)
 };
 
