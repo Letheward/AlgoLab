@@ -80,6 +80,7 @@ char* source_files[] = {
     "NoCS.c",
     "sort.c",
     "crazy_macro.c",
+    "index_array.c",
     // "word.c", // too slow on some terminals (looking at you, Microsoft!)
 };
 
