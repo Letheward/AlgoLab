@@ -81,19 +81,3 @@ int main() {
     save_file(bin, "modified.exe");
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
