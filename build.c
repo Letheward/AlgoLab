@@ -77,10 +77,11 @@ char* source_files[] = {
     "macro.c",
     "base64.c",
     "allocator.c",
-    "NoCS.c",
+    // "NoCS.c", // kinda slow
     "sort.c",
     "crazy_macro.c",
     "index_array.c",
+    "all.c",
     // "word.c", // too slow on some terminals (looking at you, Microsoft!)
 };
 
