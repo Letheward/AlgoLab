@@ -232,7 +232,7 @@ String concat(u64 count, ...) {
 String concat_array(Array(String) strings) {
     
     u64 count = 0;
-    for (int i = 0; i < strings.count; i++) {
+    for (u64 i = 0; i < strings.count; i++) {
         count += strings.data[i].count;
     }
 
@@ -242,9 +242,9 @@ String concat_array(Array(String) strings) {
     };
     
     u64 counter = 0;
-    for (int i = 0; i < strings.count; i++) {
+    for (u64 i = 0; i < strings.count; i++) {
         String s = strings.data[i];
-        for (int j = 0; j < s.count; j++) {
+        for (u64 j = 0; j < s.count; j++) {
             out.data[counter + j] = s.data[j];
         }
         counter += s.count;
@@ -278,7 +278,7 @@ Array(String) string_split(String s, String separator) {
 
     pos = s;
     
-    for (int i = 0; i < count; i++) {
+    for (u64 i = 0; i < count; i++) {
         String new = string_find(pos, separator);
         if (!new.data) {out.data[i] = pos; break;}
         out.data[i] = (String) {pos.data, new.data - pos.data};
@@ -290,8 +290,8 @@ Array(String) string_split(String s, String separator) {
 
 String string_join(Array(String) s, String seperator) {
     
-    int result_count = 0;
-    for (int i = 0; i < s.count; i++) result_count += s.data[i].count;   
+    u64 result_count = 0;
+    for (u64 i = 0; i < s.count; i++) result_count += s.data[i].count;   
     result_count += seperator.count * (s.count - 1);
     
     u8* data = runtime.alloc(result_count); 
@@ -449,18 +449,18 @@ void print(String s, ...) {
     {
         va_list args;
         va_start(args, s);
-        for (int i = 0; i < arg_count; i++) args_data[i] = va_arg(args, String);
+        for (u64 i = 0; i < arg_count; i++) args_data[i] = va_arg(args, String);
         va_end(args);
     }
 
     String c = chunks.data[0];
-    for (int j = 0; j < c.count; j++) putchar(c.data[j]);
+    for (u64 j = 0; j < c.count; j++) putchar(c.data[j]);
 
-    for (int i = 0; i < arg_count; i++) {
+    for (u64 i = 0; i < arg_count; i++) {
         String c   = chunks.data[i + 1];
         String arg = args_data[i]; 
-        for (int j = 0; j < arg.count; j++) putchar(arg.data[j]);
-        for (int j = 0; j < c.count;   j++) putchar(c.data[j]);
+        for (u64 j = 0; j < arg.count; j++) putchar(arg.data[j]);
+        for (u64 j = 0; j < c.count;   j++) putchar(c.data[j]);
     }
 
     temp_free(sizeof(String) * arg_count);
