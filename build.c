@@ -83,6 +83,7 @@ char* source_files[] = {
     "index_array.c",
     "all.c",
     "gibberish_code_generator.c",
+    "simd.c",
     // "word.c", // too slow on some terminals (looking at you, Microsoft!)
 };
 
