@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <time.h>
+#include <assert.h>
 
 #include <x86intrin.h>
 
@@ -34,6 +35,7 @@ void time_it() {
 /* ==== Rotor ==== */
 
 typedef struct {float s, yz, zx, xy;} Rotor3D;
+typedef struct {__m128 s, yz, zx, xy;} Rotor3D_4;
 
 void print_r3d(Rotor3D r) {
     printf("%f %f %f %f\n", r.s, r.yz, r.zx, r.xy);
@@ -42,6 +44,16 @@ void print_r3d(Rotor3D r) {
 
 Rotor3D r3d_mul(Rotor3D a, Rotor3D b) {
     return (Rotor3D) {
+        a.s * b.s  - a.yz * b.yz - a.zx * b.zx - a.xy * b.xy,
+        a.s * b.yz + a.yz * b.s  - a.zx * b.xy + a.xy * b.zx,
+        a.s * b.zx + a.zx * b.s  - a.xy * b.yz + a.yz * b.xy,
+        a.s * b.xy + a.xy * b.s  - a.yz * b.zx + a.zx * b.yz,
+    };
+}
+
+
+Rotor3D_4 r3d_mul_4(Rotor3D_4 a, Rotor3D_4 b) {
+    return (Rotor3D_4) {
         a.s * b.s  - a.yz * b.yz - a.zx * b.zx - a.xy * b.xy,
         a.s * b.yz + a.yz * b.s  - a.zx * b.xy + a.xy * b.zx,
         a.s * b.zx + a.zx * b.s  - a.xy * b.yz + a.yz * b.xy,
@@ -110,9 +122,9 @@ Rotor3D r3d_mul_simd2(Rotor3D a, Rotor3D b) {
     __m128 t3m   = _mm_xor_ps(t3, mask);
     
     // get result
-    __m128 tr0   = _mm_add_ps(t0,  t1m);
-    __m128 tr1   = _mm_add_ps(tr0, t3m);
-    __m128 vo    = _mm_sub_ps(tr1, t2);    
+    __m128 r0    = _mm_add_ps(t0, t1m);
+    __m128 r1    = _mm_add_ps(r0, t3m);
+    __m128 vo    = _mm_sub_ps(r1, t2);    
     
     _mm_store_ps(&out.s, vo);
 
@@ -136,25 +148,81 @@ int main() {
         _mm_store_ps(&out.s, vo);
 
         print_r3d(r3d_mul(a, b));
-        print_r3d(out);
         print_r3d(r3d_mul_simd2(a, b));
+        print_r3d(out);
+    }
+
+    {
+        float as [4] = {0.1, 0, 0, 0};
+        float ayz[4] = {0.2, 0, 0, 0};
+        float azx[4] = {0.3, 0, 0, 0};
+        float axy[4] = {0.4, 0, 0, 0};
+
+        float bs [4] = {0.5, 0, 0, 0};
+        float byz[4] = {0.6, 0, 0, 0};
+        float bzx[4] = {0.7, 0, 0, 0};
+        float bxy[4] = {0.8, 0, 0, 0};
+ 
+        float os [4];
+        float oyz[4];
+        float ozx[4];
+        float oxy[4];
+   
+        Rotor3D_4 va;
+        Rotor3D_4 vb;
+        Rotor3D_4 vo;
+
+        va.s  = _mm_load_ps(as);
+        va.yz = _mm_load_ps(ayz);
+        va.zx = _mm_load_ps(azx);
+        va.xy = _mm_load_ps(axy);
+
+        vb.s  = _mm_load_ps(bs);
+        vb.yz = _mm_load_ps(byz);
+        vb.zx = _mm_load_ps(bzx);
+        vb.xy = _mm_load_ps(bxy);
+        
+        vo = r3d_mul_4(va, vb);
+
+        _mm_store_ps(os,  vo.s);
+        _mm_store_ps(oyz, vo.yz);
+        _mm_store_ps(ozx, vo.zx);
+        _mm_store_ps(oxy, vo.xy);
+
+        printf("%f %f %f %f\n", os[0], oyz[0], ozx[0], oxy[0]);
     }
 
        
     const int count = 1024 * 32;
 
+    #define SoA
+
+    #ifdef AoS
     Rotor3D* a   = malloc(sizeof(Rotor3D) * count);
     Rotor3D* b   = malloc(sizeof(Rotor3D) * count);
     Rotor3D* out = malloc(sizeof(Rotor3D) * count);
+    #endif
+    
 
-    #define simd
-    for (int i = 0; i < 64; i++) {
+    #ifdef SoA
+    int soa_count = count / 4;
+    Rotor3D_4* va   = malloc(sizeof(Rotor3D_4) * soa_count);
+    Rotor3D_4* vb   = malloc(sizeof(Rotor3D_4) * soa_count);
+    Rotor3D_4* vout = malloc(sizeof(Rotor3D_4) * soa_count);
+    
+    assert((sizeof(Rotor3D) * count) == (sizeof(Rotor3D_4) * soa_count));
+    #endif
 
+    for (int i = 0; i < 16; i++) {
+
+
+        #ifdef AoS
         for (int i = 0; i < count; i++) {
             a[i] = (Rotor3D) {rand() / 32768.0, rand() / 32768.0, rand() / 32768.0, rand() / 32768.0};
             b[i] = (Rotor3D) {rand() / 32768.0, rand() / 32768.0, rand() / 32768.0, rand() / 32768.0};
         }
 
+        #define simd
         time_it();
         for (int i = 0; i < count; i++) {
 
@@ -174,6 +242,53 @@ int main() {
             #endif
         }
         time_it();
+        #endif
+
+
+        #ifdef SoA
+        for (int i = 0; i < soa_count; i++) {
+
+            float as [4];
+            float ayz[4];
+            float azx[4];
+            float axy[4];
+
+            float bs [4];
+            float byz[4];
+            float bzx[4];
+            float bxy[4];
+
+            for (int j = 0; j < 4; j++) {
+
+                as [j] = rand() / 32768.0;
+                ayz[j] = rand() / 32768.0;
+                azx[j] = rand() / 32768.0;
+                axy[j] = rand() / 32768.0;
+
+                bs [j] = rand() / 32768.0;
+                byz[j] = rand() / 32768.0;
+                bzx[j] = rand() / 32768.0;
+                bxy[j] = rand() / 32768.0;
+            }
+
+            va[i].s  = _mm_load_ps(as);
+            va[i].yz = _mm_load_ps(ayz);
+            va[i].zx = _mm_load_ps(azx);
+            va[i].xy = _mm_load_ps(axy);
+
+            vb[i].s  = _mm_load_ps(bs);
+            vb[i].yz = _mm_load_ps(byz);
+            vb[i].zx = _mm_load_ps(bzx);
+            vb[i].xy = _mm_load_ps(bxy);
+        }
+
+        time_it();
+        for (int i = 0; i < soa_count; i++) {
+            vout[i] = r3d_mul_4(va[i], vb[i]);
+        }
+        time_it();
+        #endif
+
     }
 
 }
