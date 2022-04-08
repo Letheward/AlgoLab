@@ -1,0 +1,219 @@
+Allegro - Allegro 4 & 5 are cross-platform, open source, game programming libraries, primarily for C and C++ developers.
+Amethyst - Data-driven game engine written in Rust for 2D & 3D using gfx-rs.
+amulet - A free Lua-based audio/visual toolkit suitable for small games and experimentation. It runs on Windows, Mac, Linux, HTML5 and iOS.
+Astera - 2D C99 Cross Platform Game Library / Framework
+Azul3D - A 3D engine written in Go.
+Babylon.js - Javascript 3D Library.
+Bevy - A refreshingly simple data-driven game engine built in Rust
+bgfx - Cross-platform, graphics API agnostic, "Bring Your Own Engine/Framework" style rendering library.
+bitsy - A little editor for little games or worlds. The goal is to make it easy to make games where you can walk around and talk to people and be somewhere.
+Bladecoder - Classic point and click adventure game engine and editor.
+Blend4Web - A Javascript framework for creating and displaying interactive 3D computer graphics in web browsers.
+Blitz3D - 3D basic-like programming language for fast 3D desktop games.
+boardgame.io - State management and multiplayer networking for turn-based games.
+Box2D - A 2D Physics Engine for Games.
+Bullet - Real-time physics simulation.
+CRYENGINE - A pay what you want next gen 3D game engine written in C++.
+Chipmunk C# - C# implementation of the Chipmunk2D lib.
+Chipmunk2D - A fast and lightweight 2D game physics library.
+Cinder - Cinder is a community-developed, free and open source library for professional-quality creative coding in C++.
+Cocos Creator - Cocos Creator, a free cross-platform game development editor supporting Cocos2d-js, helps developers build 2D and 3D game scenes, edit game UI and other game resources quickly and efficiency.
+Cocos2D - graphic library for games and multimedia, for python language
+Cocos2d-x - a C++ OpenGL 2D and 3D game engine. Uses C++ but has JS and Lua bindings. Target all the major mobile platforms and operating systems. Additional tools CocoStudio and Cocos Code IDE.
+Construct - an HTML5 game maker, meaning you are not actually writing JavaScript. Instead, you use actions, events and conditions to do the heavy lifting.
+CopperCube - CopperCube is an all-in-one 3D game engine.Very easy to use.
+Coquette - A micro framework for JavaScript games. Handles collision detection, the game update loop, canvas rendering, and keyboard and mouse input.
+ct.js - this 2D game engine makes learning programming fun and game development easy by its visual tools, good docs, and flexible, modular library.
+Dash - A free and open 3D game engine written in D.
+Dear Imgui - A bloat-free immediate mode GUI for C++ with minimal dependencies.
+Defold - Free 2D Game Engine for Cross-Platform Publishing
+DEM Net Elevation API C# - Terrain generation from real data with textures, normal maps, glTF, OBJ, STL support
+Diligent Engine - A modern cross-platform low-level graphics library that supports Direct3D11, Direct3D12, OpenGL/GLES, and Vulkan.
+E.B.U.R.P - The Eight-Bit Universal Role Playing Engine
+ENGi - A multi-platform 2D game library for Go.
+engo - Engo is an open-source 2D game engine written in Go.
+Ebiten - A dead simple 2D game library in Go.
+ecs-lib - ecs-lib is a tiny and easy to use ECS (Entity Component System) library for game programming. It's written in Typescript but you can use on node.js and web browser too.
+Ejecta - A Fast, Open Source JavaScript, Canvas & Audio Implementation for iOS.
+EnTT - Gaming meets modern C++, a fast and reliable entity-component system (ECS) and much more
+FXGL - A JavaFX/Kotlin game engine for Win/Mac/Linux.
+Farseer - a collision detection system with realistic physics responses.
+Flame - a minimalist game engine for Flutter
+FlashPunk - free ActionScript 3 library designed for developing 2D Flash games.
+Flixel - an open source game-making written in ActionScript3.
+GameMaker - GameMaker accommodates the creation of cross-platform video games using drag and drop or a scripting language known as Game Maker Language, which can be used to develop more advanced games that could not be created just by using the drag and drop features.
+gameplay - A free, open-source, cross-platform, 2D + 3D game framework written in C++. It is aimed towards indie game developers who are creating desktop and mobile games.
+GameSalad - Game Creation Engine for Mac and Windows.
+GB Studio - A free and easy to use retro adventure game creator for your favourite handheld video game system.
+ggez - A Rust library to create Good Games Easily.
+Gideros - A Cross-Platform framework to create Mobile Apps and games for iOS, Android using Lua programming language.
+Glide Engine - Engine for making 2d games on iOS, macOS and tvOS in Swift programming language, with practical examples and tutorials.
+Godot - An advanced, feature-packed, multi-platform 2D and 3D open-source game engine.
+Gorgon - A 2D rendering API for .NET, written in C#.
+Grid - A multiplayer-first game engine for Lua.
+HaxeFlixel - Create cross-platform games easier and free.
+Heaps - Cross platform graphics for high performance games.
+Horde3D - small open source 3D rendering engine.
+iio.js - A javascript library that speeds the creation and deployment of HTML5 Canvas applications
+ImpactJS - Impact is a JavaScript Game Engine that allows you to develop stunning HTML5 Games for desktop and mobile browsers.
+Inform7 - A design system for interactive fiction based on natural language.
+Ink - Scripting language for writing interactive narrative.
+Irrlicht - open source high performance realtime 3D engine written in C++.
+Jitter - a fast and lightweight physics engine written in C#.
+jMonkeyEngine 3 - a 3D open-source game engine for adventurous Java developers.
+JPCT - jPCT is a 3D engine for desktop Java and Google's Android.
+Juno - Clean and lightweight 2D game framework written in TypeScript
+Kivent - A 2D game framework for Kivy.
+Kivy - Cross platform Python framework for creating apps and games for Linux, Windows, OS X, Android and iOS
+KogGE - Modern Multiplatform Game Engine for Kotlin. Write games for the JVM, JavaScript, Android and iOS in no time using Kotlin.
+KiwiJS - a fun and friendly Open Source HTML5 Game Engine. Some people call it the WordPress of HTML5 game engines
+Leadwerks - Easy-to-learn game engine for 3D and VR.
+LibGDX - Powerful (totally free) library for Java, code once and run the game on desktop, Android, Web, and iOS.
+LimeJS - HTML5 game framework for building fast, native-experience games for all modern touchscreens and
+LITIengine - 2D Java Game Engine. It provides all the infrastructure to create tile based 2D games with plain java
+Lumberyard - Amazon Lumberyard is a free AAA game engine deeply integrated
+LumixEngine - 3D Game engine built on C++.
+Lums - A 2D / 3D framework written in C++11. Very efficient and modern. Still under heavy development.
+LÖVE - Lua 2D Game Engine.
+MINX - Open Source 2D game framework written in C++ (to the style of XNA)
+macroquad - The cross-platform game engine in Rust.
+Magnum - a lightweight and modular 2D/3D graphics/game engine written in C++11
+Matter.js - a 2D physics engine for the web.
+MelonJS - open source light-weight HTML5 game engine.
+Mini Micro - Mini Micro is a fantasy computer for making, playing and sharing 2D games and programs written in the modern MiniScript language.
+Monogame - Open Source implementation of the Microsoft XNA 4 Framework.
+Nakama - Distributed server for social and realtime games and apps.
+nCine - A cross-platform 2D game engine with an emphasis on performance, written in C++11 and optionally scriptable in Lua.
+NodeBox - a family of Python tools to create generative design.
+nuklear - A single-header ANSI C immediate mode cross-platform GUI library.
+ODE - ODE is an open source, high performance library for simulating rigid body dynamics.
+Ogre3D - is a scene-oriented, real-time, flexible 3D rendering engine (as opposed to a game engine) written in C++.
+OpenFL - Open Source Haxe Engine for making multi-platform games.
+openFrameworks - An open source and free C++ toolkit for creative coding.
+OpenRA - OpenRA is a Libre/Free Real Time Strategy Game Engine.
+OpenXRay - a community-modified X-Ray engine used in S.T.A.L.K.E.R. game series.
+PICO-8 - A fantasy console for making, sharing and playing tiny games and other computer programs.
+p2.js - JavaScript 2D physics library
+Panda3D - a framework for 3D rendering and game development for Python and C++ programs.
+Phaser - free and fast 2D game framework for making HTML5 games for desktop and mobile web browsers, supporting Canvas and WebGL rendering.
+phina.js - A JavaScript game library that makes it easy to create games and tools.
+Piston - a modular open source game engine written in Rust.
+Pixel Vision 8 - Pixel Vision 8's core philosophy is to teach retro game development with streamlined workflows. PV8 is also a platform that standardizes 8-bit fantasy console limitations built on top of the open-source C# game engine based on MonoGame.
+Planck.js - 2D JavaScript physics engine for cross-platform HTML5 game development.
+PlayCanvas - A WebGL Game Engine.
+Polycode - Open-Source Framework for creating games in C++ (with Lua bindings).
+Processing - Processing is a programming language, development environment for artists, designers, researchers.
+PuzzleScript - open-source HTML5 puzzle game engine.
+PyGame - a 2D game engine in Python.
+Pyxel - a retro game engine for Python.
+RPGMaker - series of programs for the development of role-playing games.
+Rajawali - Android OpenGL ES 2.0/3.0 Engine
+raylib - a simple and easy-to-use library to enjoy videogames programming, hardware accelerated with OpenGL (1.1, 2.1, 3.3 or ES 2.0)
+Ren'Py - An open-source visual novel engine using the Python language in simplified form. It supports Windows, Mac OS X, Linux, Android and iOS.
+Rpgboss - A 2d rpg game engine and editor based on scala and libgdx. Ease of use, with no programming knowledge.
+SDL - SDL is a cross-platform library designed to provide low level access to audio, keyboard, mouse, joystick, and graphics hardware via OpenGL and Direct3D.
+SFML - Simple and Fast Multimedia Library.
+Solar2D - A Lua based game engine with focus on ease of iterations and usage.
+Solarus - Cross-platform 2D Action/Adventure C++ game engine with Lua API and game editor.
+Spring - A powerful free cross-platform RTS engine.
+SpriteKit - iOS/Mac 2D Game Engine.
+Stage.js - Lightweight and fast 2D HTML5 rendering and layout engine for cross-platform game development.
+Starling - The GPU powered 2D Flash API
+Stencyl - a game creation platform that allows users to create 2D video games for computers, mobile devices, and the web.
+Stride - Open Source C# Game Engine.
+Superpowers - HTML5 Collaborative 2D/3D Game Maker
+TIC-80 - TIC-80 is a fantasy computer for making, playing and sharing tiny games.
+Three.js - Javascript 3D Library.
+Turbulenz - Turbulenz offers the ability to build, publish, iterate and monetise high-quality games that react like no others, with immersive 3D effects and real-time physics that open up a whole new world of unprecedented and extraordinary web content.
+Twine - Downloadable or browser-based game development platform that allows users to create linked story paths. Not just text-based, Twine supports music, images, and sound effects. Very little coding knowledge required for basic text adventure games.
+Unity 3D - A development engine for the creation of 2D and 3D games and interactive content.
+Unreal Engine 4 - the new game engine technology developed by Epic Games.
+Urho3D - Cross-platform rendering and game engine.
+ursina - A game engine powered by python and panda3d.
+Vassal - Vassal is a game engine for building and playing online adaptations of board games and card games. Play live on the Internet or by email. Vassal runs on all platforms, and is free, open-source software.
+voxel.js - voxel.js is a collection of projects that make it easier than ever to create 3D voxel games like Minecraft all in the browser.
+Wave - Cross-platform engine written in C#.
+Wolf RPG Editor English - open source editor for RPG Maker style gamesl
+WhiteStorm.js - 3d javacript framework for building apps and games
+2D Cartoon Mobile Game UI Pack - cartoon user interface asset pack. It comes as a layered psd file.
+420 Pixel Art Icons for RPGs - Set of 420 RPG icons, free for commercial use.
+Blender 3D models - 3D models, particle systems/effects
+CGTextures - A large collection of textures.
+GameDev Market - a community-driven marketplace that connects indie game developers with talented asset creators.
+Games-Icons Set - free icons for your games.
+Iconmonstr - Another free icons resource for your games.
+Kenney Assets - Royalty free assets
+Liberated Pixel Cup assets - Free graphic assets of the Liberated Pixel Cup (LPC) held by the OpenGameArt forums
+Matcaps - A Huge library of matcap textures in PNG and ZMT, organized by color.
+OpenClipart - Collection of free cliparts.
+OpenGameArt - a media repository intended for use with free software game projects.
+Oryx Design Lab - Cheap high quality royalty free sprites
+PlainTextures - Free high resolution textures, brushes and photos
+Poly Pizza - 6000+ free low poly models
+Reiner's Tilesets - A blog with free 2D and 3D graphics.
+Sketchfab - Publish & embed interactive 3D models.
+SpriteLib - a collection of static and animated graphic objects (also commonly known as sprites).
+StickyPNG - Free transparent PNG images.
+TextureHaven - Free textures with additional maps like displacement and bump maps. Also HDRIs.
+TextureKing - Free material stock textures
+Vecteezy - Free Vector Art.
+Cheetah-Texture-Packer - High efficient and fast 2D bin packing tool
+EzSpriteSheet - Creates sprite sheets from animated GIFs and more
+Libgdx Texture Packer - Texture Packer built into Libgdx
+Littera - Bitmap font generator
+ShoeBox - Adobe Air based app with game and ui related tools.
+Sprite Sheet Packer - Combine multiple images into a single sprite sheet and generate a txt map of it.
+TexturePacker - Great spritesheet creation editor.
+Tilesplit - CLI text-based tilesheet splitter and namer. Turn a spritesheet into many separate files with names you pick, or not if you don't care. Support templates and textures that are not all the same size.
+ImageAlpha - Mac OS X GUI for pngquant and other tools
+Kraken.io - robust, ultra-fast image optimizer and compressor with best-in-class algorithms.
+PNGGauntlet - Smash PNGs for faster sites
+PNGoo - Windows GUI for batch conversion.
+Pngyu - simple PNG image file compression tool.
+SuperPNG Photoshop plug-in - Mac and Windows. Comparison with "Save for Web"
+TinyPNG - Advanced lossy compression for PNG images that preserves full alpha transparency.
+FilterForge - A plugin for Adobe Photoshop that allows you to build your own filters.
+Live Normal - An Android and iOS app for generating seamless materials on the go. You take a photo, and Live Normal creates a tile-able texture and generates texture maps ready for a PBR engine of your choice.
+PixPlant - PixPlant is a smart 3D texturing tool that creates high quality normal, displacement, specular maps and seamless textures from photos.
+Charas - Charas is a charset generator for RPG Maker.
+ArrayPainter - Array Painter is the easiest and fastest way to make 2D arrays ready for copy pasting into your own program.
+AutoTileGen - AutoTileGen is an automatic tileset generator for 2D game terrains.
+LDtk - LDtk is an open-source 2D level editor for indie devs, with a strong focus on user-friendliness.
+OGMO Editor - generic level editor.
+Overlap2D - a 2D level and UI editor with an engine agnostic philosophy.
+Tiled - free, easy to use and flexible tile map editor.
+Fusion Character Animator - small tool for Clickteam Fusion 2.5 to facilitate the animation of 2D character sprites for developers.
+GraphicsDale - Powerful tool for spriting and pixel art.
+Spine - Spine is dedicated to 2D animation, providing an efficient workflow both for creating amazing animation and for integrating it into your games.
+Spriter Pro - Modern tool for sprite animation.
+DragonBones - The Open Source 2D skeleton animation solution for Flash
+LWF - Lightweight SWF. LWF is an animation engine which can play animation data converted from FLASH contents in HTML5, Unity, Cocos2d-x, iOS UIKit, and more.
+Mixamo - tool for auto auto rigging and animation of 3D humanoid models,
+Affinity Designer - Vector graphics editor with a bunch of features which also supports Adobe file formats
+Affinity Photo - Photo and raster graphics editor which works together with Adobe file formats and Affinity Designer
+Aseprite - animated sprite editor & pixel art tool.
+Gimp - GNU Image Manipulation Program. It is a freely distributed piece of software for such tasks as photo retouching, image composition and image authoring.
+Inkscape - An open-source vector graphics editor similar to Adobe Illustrator, Corel Draw, Freehand, or Xara X.
+Krita - Krita is a professional FREE and open source painting program. It is made by artists that want to see affordable art tools for everyone.
+LibreSprite - LibreSprite is an open source fork of Aseprite.
+Multipaint - A cross-platform (Win, Linux, Mac) image editor/painter which covers the color limitations of 8-bit machines (like C64, ZX Spectrum etc.)
+Ormr - Ormr is a fast, light-weight, cross-platform procedural graphics editor.
+Paint.NET - Paint.NET is free image and photo editing software for PCs that run Windows.
+Pickle - Another Pixel art Editor.
+PiskelApp - Free Online Pixel Art and Animated Sprite Tool.
+elmator - Full-featured image editing app for the Mac
+Pixen - Pixel Art Editor for OSX
+project one - A picture converter and editor for the Commodore 64 covering different graphics mode of this computer. Windows only
+PXL8 - A cross platform (Windows, Mac, Linux) pixel art editor in development which aims to be distraction free
+PyxelEdit - Pixel art editor designed to make it fun and easy to make tilesets, levels and animations.
+REXPaint - a powerful and user-friendly ASCII art editor.
+rx - a modern & minimalist pixel editor
+Tilemancer - A quick procedural tile creator designed for pixel-art games.
+Timanthes - A pixel art editor for the Commodore 64 computer running on Windows
+ras - Charas is a charset generator for RPG Maker.
+Spritemate - Online Editor for Commodore 64 Sprites
+Pixelator - Turn any image into fancy pixel-art
+Canyon Terrain Editor - Create quality, realistic terrain quickly and intuitively
+Fracplanet - Fractal planet and terrain generator
+World Creator - Procedural terrain and landscape generation on the GPU in real time, simulation of erosion and sediment, beautiful editor. much more
+World Machine - Procedural terrain creation, simulations of nature, and interactive editing
