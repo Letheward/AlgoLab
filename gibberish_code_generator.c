@@ -231,8 +231,6 @@ String string_concat(u64 count, ...) {
         counter += s.count;
     }
     
-    temp_free(size);
-
     return out;
 }
 
