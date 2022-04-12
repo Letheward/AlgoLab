@@ -77,7 +77,6 @@ char* source_files[] = {
     "macro.c",
     "base64.c",
     "allocator.c",
-    // "NoCS.c", // kinda slow
     "sort.c",
     "crazy_macro.c",
     "index_array.c",
