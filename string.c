@@ -2,142 +2,190 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <assert.h>
+#include <time.h>
 
 
 
 
-/* ==== Data ==== */
+/* ==== Types ==== */
+
+typedef unsigned char           u8;
+typedef unsigned short int      u16;
+typedef unsigned int            u32;
+typedef unsigned long long int  u64;
+typedef signed char             s8;
+typedef signed short            s16;
+typedef signed int              s32;
+typedef signed long long int    s64;
+typedef float                   f32;
+typedef double                  f64;
 
 typedef struct {
-    unsigned char* data;
-    unsigned int   count;
-    int            is_temporary; // if you alloc new String.data in a formatter, mark this to 1. todo: is this a good solution?
+    u8* data;
+    u64 count;
 } String;
 
-unsigned char base64_table[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ@_";
+typedef struct {
+    u8* data;
+    u64 count;
+    u64 allocated;
+} StringBuilder;
 
 
 
 
-/* ==== Basic Utilities 1 ==== */
+/* ==== Macros ==== */
 
-// note: this is the pain point of this approach, because C string literals
-// have C string semantics, not in our String semantic, so we have to write
-// a lot of macros to make APIs (kinda) easy to use, or we have to convert
-// back and forth all the time at runtime, which is worse than just using char*
+#define string(s)            (String) {(u8*) s, sizeof(s) - 1}
+#define length_of(array)     (sizeof(array) / sizeof(array[0]))
+#define array(Type, c_array) (Array(Type)) {c_array, length_of(c_array)}
 
-// convert null terminated ascii to String
-#define _(s) (String) {(unsigned char*) s, sizeof(s) - 1, 0} // compile time version, does this made the string twice?
-String string(char* s) {                                     // runtime version, note: will not alloc a new string
-    unsigned int i = 0;
-    while (s[i] != '\0') i++;
-    return (String) {(unsigned char*) s, i, 0};
+#define Array(Type) Array_ ## Type
+#define Define_Array(Type) \
+typedef struct {           \
+    Type* data;            \
+    u64   count;           \
+} Array(Type)              \
+
+Define_Array(String);
+
+
+
+
+
+
+
+/* ==== Temp Allocator ==== */
+
+typedef struct {
+    u8* data;
+    u64 size;
+    u64 allocated;
+    u64 highest;
+} ArenaBuffer;
+
+struct {
+    ArenaBuffer   temp_buffer;
+    void*         (*alloc)(u64);
+    Array(String) command_line_args;
+} runtime;
+
+
+void* temp_alloc(u64 count) {
+
+    ArenaBuffer* a = &runtime.temp_buffer;
+    
+    u64 current = a->allocated;
+    u64 wanted  = current + count;
+    
+    assert(wanted < a->size);
+    
+    if (wanted > a->highest) a->highest = wanted; // check the highest here, maybe slow?
+    a->allocated = wanted;
+
+    return a->data + current;
 }
 
-#define string_free(s) _string_free(&(s))
-void _string_free(String* s) {
-    free(s->data);
-    *s = (String) {0};
+void temp_free(u64 size) {
+    runtime.temp_buffer.allocated -= size;
 }
 
-String copy(String s) {
-    unsigned char* data = malloc(sizeof(unsigned char) * s.count);
-    for (unsigned int i = 0; i < s.count; i++) data[i] = s.data[i]; // todo: speed
-    return (String) {data, s.count, 0};
+void temp_reset() {
+    ArenaBuffer* a = &runtime.temp_buffer;
+    a->allocated = 0;
+    memset(a->data, 0, a->highest); // do we need this?
 }
 
-// mark a heap allocated String as temporary, 
-// useful for print() and concat_many(), etc
-// do not use this on static or stack allocated String!
-String temp(String s) {
-    s.is_temporary = 1;
-    return s;
+void temp_info() {
+    ArenaBuffer* a = &runtime.temp_buffer;
+    printf(
+        "\nTemp Buffer Info:\n"
+        "Data:      %p\n"
+        "Size:      %lld\n"
+        "Allocated: %lld\n"
+        "Highest:   %lld\n\n",
+        a->data, a->size, a->allocated, a->highest
+    );
 }
 
-// compare strings by content, exact match
-#define equal_(a, b) equal(_(a), b)
-int equal(String a, String b) {
+
+
+
+/* ==== Utils ==== */
+
+void error(char* s, ...) {
+
+    va_list va;
+    va_start(va, s);
+
+    printf("[Error] ");
+    vprintf(s, va);
+
+    exit(1); 
+}
+
+
+
+
+/* ==== Timer ==== */
+
+typedef struct {
+    struct timespec start;
+    struct timespec end;
+    u8 which;
+} PerformanceTimer;
+
+PerformanceTimer timer;
+
+void time_it() {
+    if (timer.which == 0) {
+        clock_gettime(CLOCK_MONOTONIC, &timer.start);
+        timer.which = 1;
+    } else {
+        clock_gettime(CLOCK_MONOTONIC, &timer.end);
+        printf("%fs\n", (timer.end.tv_sec - timer.start.tv_sec) + 1e-9 * (timer.end.tv_nsec - timer.start.tv_nsec));
+        timer.which = 0;
+    }
+}
+
+
+
+
+
+
+/* ==== String: Basic ==== */
+
+String string_advance(String s, u64 p) {
+    return (String) {s.data + p, s.count - p};
+}
+
+String string_copy(String s) {
+    u8* data = runtime.alloc(s.count);
+    for (u64 i = 0; i < s.count; i++) data[i] = s.data[i]; // todo: speed
+    return (String) {data, s.count};
+}
+
+u8 string_equal(String a, String b) {
     if (a.count != b.count) return 0;
-    for (unsigned int i = 0; i < a.count; i++) {
-        if (a.data[i] != b.data[i]) return 0; // todo: speed!!!
+    if (a.data  == b.data ) return 1;
+    for (u64 i = 0; i < a.count; i++) {
+        if (a.data[i] != b.data[i]) return 0; // todo: speed
     }
     return 1;
 }
 
-
-
-
-/* ==== Basic Utilities 2 ==== */
-
-String view(String s, int p) {
-    if (p >= s.count) return (String) {0};
-    return (String) {s.data + p, s.count - p, 0};
-}
-
-String concat(String a, String b) {
-    
-    unsigned int   count = a.count + b.count;
-    unsigned char* data  = malloc(sizeof(unsigned char) * count); 
-    
-    for (int i = 0; i < a.count; i++) data[i]           = a.data[i];
-    for (int i = 0; i < b.count; i++) data[i + a.count] = b.data[i];
-
-    return (String) {data, count, 0};
-}
-
-// note: will auto free temp String
-String concat_many(int count, ...) {
-    
-    String arg_strings[128];
-    {
-        va_list args;
-        va_start(args, count);
-        for (int i = 0; i < count; i++) arg_strings[i] = va_arg(args, String);
-        va_end(args);
-    }
-
-    unsigned int result_count = 0;
-    for (int i = 0; i < count; i++) {
-        result_count += arg_strings[i].count; // todo: solve overflow
-    }
-
-    unsigned char* data = malloc(sizeof(unsigned char) * result_count);
-    {
-        unsigned int counter = 0;
-        for (int i = 0; i < count; i++) {
-            String s = arg_strings[i];
-            for (int j = 0; j < s.count; j++) {
-                data[counter] = s.data[j];
-                counter++;
-            }
-        }
-    }
-
-    for (int i = 0; i < count; i++) {
-        if (arg_strings[i].is_temporary) free(arg_strings[i].data);
-    }
-
-    return (String) {data, result_count, 0};
-}
-
-
-
-
-/* ==== Token Related Functions ==== */
-
-// find b in a, return string view (if not return NULL)
-#define find_(a, b) find(a, _(b))
-#define find__(a, b) find(_(a), _(b))
-String find(String a, String b) {
+// dumb linear search for now
+String string_find(String a, String b) {
     
     if (a.data == NULL || b.data == NULL) return (String) {0};
     
-    for (unsigned int i = 0; i < a.count; i++) {
+    for (u64 i = 0; i < a.count; i++) {
         if (a.data[i] == b.data[0]) {
-            for (unsigned int j = 0; j < b.count; j++) {
+            for (u64 j = 0; j < b.count; j++) {
                 if (a.data[i + j] != b.data[j]) goto next;
             }
-            return view(a, i); 
+            return (String) {a.data + i, a.count - i};
             next: continue;
         }
     }
@@ -145,68 +193,122 @@ String find(String a, String b) {
     return (String) {0};
 }
 
-// split s by x, return an array of string view
-#define split_(s, x, count) split(s, _(x), count)
-#define split__(s, x, count) split(_(s), _(x), count)
-String* split(String s, String x, unsigned int* out_count) {
+String string_concat(u64 count, ...) {
     
-    if (s.data == NULL || x.data == NULL) return NULL;
-    
-    unsigned int count = 0;
-    
-    // we do this loop twice (for allocating), is there a better way?
-    String current = s;
-    while (current.data != NULL) {
-        count++;
-        String new = find(current, x);
-        if (equal(new, x)) {count++; break;} // todo: speed??
-        current = view(new, x.count);
+    u64 size = sizeof(String) * count;
+    Array(String) strings = {
+        .data  = temp_alloc(size),
+        .count = count,
     };
 
-    *out_count = count;
-    if (count == 1) return NULL; // thus avoid allocation
+    String out = {0};
+    {
+        va_list args;
+        va_start(args, count);
+        for (int i = 0; i < count; i++) {
+            String s = va_arg(args, String);
+            strings.data[i] = s;
+            out.count += s.count;
+        }
+        va_end(args);
+    }
+
+    out.data = runtime.alloc(out.count);
     
-    String* out = malloc(sizeof(String) * count);
-    
-    current = s;
+    u64 counter = 0;
     for (int i = 0; i < count; i++) {
-        String new = find(current, x);
-        if (!new.data) {out[i] = current; break;}
-        out[i] = (String) {current.data, new.data - current.data, 0};
-        current = view(new, x.count);
-    };
+        String s = strings.data[i];
+        for (int j = 0; j < s.count; j++) {
+            out.data[counter + j] = s.data[j];
+        }
+        counter += s.count;
+    }
     
     return out;
 }
 
-#define join_(s, sep) join(s, sizeof(s) / sizeof(s[0]), _(sep))
-String join(String* s, int count, String seperator) {
+String string_concat_array(Array(String) strings) {
     
-    int result_count = 0;
-    for (int i = 0; i < count; i++) result_count += s[i].count;   
-    result_count += seperator.count * (count - 1);
-    
-    unsigned char* data = malloc(sizeof(unsigned char*) * result_count); // todo: this does allocation, is there a better way?
+    u64 count = 0;
+    for (u64 i = 0; i < strings.count; i++) {
+        count += strings.data[i].count;
+    }
 
-    int start = 0;
-    for (int i = 0; i < count; i++) {
-        for (int j = 0; j < s[i].count; j++) data[start + j] = s[i].data[j];
-        start += s[i].count;
-        for (int i = 0; i < seperator.count; i++) data[start + i] = seperator.data[i];
+    String out = {
+        .data  = runtime.alloc(count),
+        .count = count,
+    };
+    
+    u64 counter = 0;
+    for (u64 i = 0; i < strings.count; i++) {
+        String s = strings.data[i];
+        for (u64 j = 0; j < s.count; j++) {
+            out.data[counter + j] = s.data[j];
+        }
+        counter += s.count;
+    }
+    
+    return out;
+}
+
+// todo: avoid two loops, handle multiple space, end with separator, etc.
+Array(String) string_split(String s, String separator) {
+    
+    Array(String) out = {0};
+
+    String pos = s;
+
+    u64 count = 1;
+    while (pos.count > 0) {
+        pos = string_find(pos, separator);
+        if (!pos.data) break;
+        pos = string_advance(pos, separator.count);
+        count++;
+    }
+
+    if (count == 1) {
+        String ss[1] = {s};
+        return array(String, ss);
+    }
+
+    out.data  = runtime.alloc(sizeof(String) * count);
+    out.count = count;
+
+    pos = s;
+    
+    for (u64 i = 0; i < count; i++) {
+        String new = string_find(pos, separator);
+        if (!new.data) {out.data[i] = pos; break;}
+        out.data[i] = (String) {pos.data, new.data - pos.data};
+        pos = string_advance(new, separator.count);
+    };
+
+    return out;
+}
+
+String string_join(Array(String) s, String seperator) {
+    
+    u64 result_count = 0;
+    for (u64 i = 0; i < s.count; i++) result_count += s.data[i].count;   
+    result_count += seperator.count * (s.count - 1);
+    
+    u8* data = runtime.alloc(result_count); 
+
+    u64 start = 0;
+    for (u64 i = 0; i < s.count; i++) {
+        for (u64 j = 0; j < s.data[i].count; j++) data[start + j] = s.data[i].data[j];
+        start += s.data[i].count;
+        for (u64 i = 0; i < seperator.count; i++) data[start + i] = seperator.data[i];
         start += seperator.count;
     }
    
-    return (String) {data, result_count, 0};
+    return (String) {data, result_count};
 }
 
-#define replace_(s, a, b) replace(s, _(a), _(b))
-#define replace__(s, a, b) replace(_(s), _(a), _(b))
-String replace(String s, String a, String b) {
-    unsigned int count = 0;
-    String* chunks = split(s, a, &count);
-    if (!chunks) return s;
-    String result = join(chunks, count, b);
-    free(chunks);
+String string_replace(String s, String a, String b) {
+    Array(String) chunks = string_split(s, a);
+    if (chunks.count < 2) return s;
+    String result = string_join(chunks, b);
     return result;
 }
 
@@ -214,40 +316,41 @@ String replace(String s, String a, String b) {
 
 
 
-/* ==== Format and Print ==== */
+/* ==== String: Formatting ==== */
 
-// note: when use these format functions outside print(), 
-//       we will need manually free(), otherwise there'll be memory leak
+String format_s32(s32 value, s32 base) {
 
-String format_s32(int value, int base) {
+    u8* table = (u8*) "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ@_";
 
-    if (value == 0) return _("0"); // quick fix, is this fast?
+    if (value == 0) return string("0"); // quick fix, is this fast?
     if (base < 2 || base > 64) return (String) {0};
 
-    unsigned char digits[32] = {0}; // todo: speed? just write it to the malloc() buffer?
-    int sign = value >> 31;
-    int count;
+    u8 digits[32] = {0}; // todo: speed? just write it to the malloc() buffer?
+    s32 sign = value >> 31;
+    s32 count;
     {
-        int temp = sign ? -value : value;
+        s32 temp = sign ? -value : value;
         for (count = 0; temp > 0; count++) {
-            digits[count] = base64_table[temp % base]; // what about custom digits?
+            digits[count] = table[temp % base]; // what about custom digits?
             temp /= base;
         }
     }
 
-    unsigned char* data = malloc(sizeof(unsigned char) * 32);
+    u8* data = temp_alloc(32);
     if (sign) {data[0] = '-'; count++;}
     for (int i = sign ? 1 : 0; i < count; i++) data[i] = digits[count - i - 1];
 
-    return (String) {data, count, 1};
+    return (String) {data, count};
 }
 
 // todo: accuracy issue, handle infinity and NaN
 String format_f32(float value) {
 
-    unsigned int data; 
+    u8* table = (u8*) "0123456789";
+    
+    u32 data; 
     {
-        unsigned int* p = (unsigned int*) &value; // workaround for aliasing warning
+        u32 * p = (u32*) &value; // workaround for aliasing warning
         data = *p; 
     }
 
@@ -256,20 +359,20 @@ String format_f32(float value) {
     int exp  = (data << 1 >> 24) - 127 - 23;
     int frac = (data << 9 >> 9) | 0x800000; // add the implicit "1." in ".1010010"
 
-    unsigned long long int temp = frac * 1000000000000; // todo: accuracy 
+    u64 temp = frac * 1000000000000; // todo: accuracy 
 
     if (exp < 0) for (int i = 0; i > exp; i--) temp /= 2;
     else         for (int i = 0; i < exp; i++) temp *= 2;
 
-    unsigned char digits[64] = {0};
+    u8 digits[64] = {0};
     int count; // digit count
     for (count = 0; temp > 0; count++) {
-        digits[count] = base64_table[temp % 10]; 
+        digits[count] = table[temp % 10]; 
         temp /= 10;
     }
     
-    unsigned char* result = malloc(sizeof(unsigned char) * 64);
-    unsigned int   result_count = 0;
+    u8* result = temp_alloc(64);
+    u64 result_count = 0;
     
     if (sign) result[0] = '-';
     int dot_pos = count - 12; // todo: find out why it's 12
@@ -289,240 +392,168 @@ String format_f32(float value) {
         for (int i = dot_pos; i <   count; i++) result[sign + i + 1] = digits[count - i - 1];
     }
 
-    return (String) {result, result_count, 1};
+    return (String) {result, result_count};
 }
 
-// note: will auto free temp String
-// todo: replace putchar()
-#define print_(s, ...) print(_(s), __VA_ARGS__)
-#define print__(s) print(_(s), 0)
+// modified from a [public domain library](https://github.com/badzong/base64/)
+String base64_encode(String in) {
+    
+    const u8* table = (u8*) "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    // allocate buffer
+    u64 count = 4 * ((in.count + 2) / 3);
+    u8* data  = runtime.alloc(count);
+
+    // convert
+    u64 j = 0;
+    for (u64 i = 0; i < in.count; i += 3) {
+        
+        u32 a = in.data[i    ];
+        u32 b = in.data[i + 1];
+        u32 c = in.data[i + 2];
+
+        u32 triple = (a << 16) + (b << 8) + c;
+
+        data[j    ] = table[(triple >> 18) & 0x3f];
+        data[j + 1] = table[(triple >> 12) & 0x3f];
+        data[j + 2] = table[(triple >>  6) & 0x3f];
+        data[j + 3] = table[(triple      ) & 0x3f];
+
+        j += 4;
+    }
+
+    // padding at the end
+    switch (in.count % 3) {
+        case 1: data[j - 2] = '=';
+        case 2: data[j - 1] = '=';
+    }
+
+    return (String) {data, count};
+}
+
+// todo: not robust, no escape with @, need more testing
 void print(String s, ...) {
+
+    Array(String) chunks = string_split(s, string("@"));
     
-    if (!s.data) return;
-    
-    unsigned int chunk_count;
-    String* chunks = split_(s, "{}", &chunk_count); // todo: speed
-    
-    if (!chunks) {
+    if (chunks.count < 2) {
         for (int i = 0; i < s.count; i++) putchar(s.data[i]);
         return;
     }
     
-    String arg_strings[128] = {0}; // note: we do this on the stack, so argument count is bounded
+    u64 arg_count = chunks.count - 1;
+    String* args_data = temp_alloc(sizeof(String) * arg_count);
+
     {
         va_list args;
         va_start(args, s);
-        for (int i = 0; i < chunk_count - 1; i++) arg_strings[i] = va_arg(args, String);
+        for (u64 i = 0; i < arg_count; i++) args_data[i] = va_arg(args, String);
         va_end(args);
     }
 
-    for (int i = 0; i < chunk_count; i++) {
-        String c   = chunks[i];
-        String arg = arg_strings[i]; // last one will be 0, thus not printing
-        for (int j = 0; j < c.count;   j++) putchar(c.data[j]);
-        for (int j = 0; j < arg.count; j++) putchar(arg.data[j]);
+    String c = chunks.data[0];
+    for (u64 j = 0; j < c.count; j++) putchar(c.data[j]);
+
+    for (u64 i = 0; i < arg_count; i++) {
+        String c   = chunks.data[i + 1];
+        String arg = args_data[i]; 
+        for (u64 j = 0; j < arg.count; j++) putchar(arg.data[j]);
+        for (u64 j = 0; j < c.count;   j++) putchar(c.data[j]);
     }
 
-    free(chunks);
-    if (s.is_temporary) free(s.data);
-    for (int i = 0; i < chunk_count - 1; i++) {
-        if (arg_strings[i].is_temporary) free(arg_strings[i].data);
-    }
+    temp_free(sizeof(String) * arg_count);
 }
 
 
 
 
 
-/* ==== Tests ==== */
 
-void test() {
+/* ==== File IO ==== */
+
+String load_file(char* path) {
+
+    FILE* f = fopen(path, "rb");
+    if (!f) error("Cannot load %s\n", path); 
+
+    u8* data;
+    u64 count;
+
+    fseek(f, 0, SEEK_END);
+    count = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    data = malloc(count);
+    fread(data, 1, count, f);
+    fclose(f);
+
+    return (String) {data, count};
+}
+
+void save_file(String in, char* path) {
+
+    FILE* f = fopen(path, "wb");
+    if (!f) error("Cannot open file %s\n", path); 
+
+    fwrite(in.data, sizeof(u8), in.count, f);
+    fflush(f);
+    fclose(f);
+}
 
 
-    print__("view(), concat() and temp():\n");
-    {
-        String a = _("this is ");
-        String b = _("a string\n");
-        String c = concat(a, b);
-        
-        print(temp(concat(a, b))); // auto free
 
-        print(view(c, 5));
-        string_free(c);
-    }
-    {
-        String a = _("this is ");
-        String b = _("really a ");
-        String c = _("string\n");
+
+/* ==== C Interface ==== */
+
+void program();
+
+int main(int arg_count, char** args) {
+
+    // setup runtime
+    u64 size = 1024 * 256;
+    runtime.temp_buffer.data = calloc(size, sizeof(u8));
+    runtime.temp_buffer.size = size;
+    runtime.alloc = malloc;
     
-        print(temp(concat_many(3, a, b, c)));
+    runtime.command_line_args = (Array(String)) {
+        .data  = malloc(sizeof(String) * arg_count),
+        .count = arg_count,
+    };
+
+    for (int i = 0; i < arg_count; i++) {
+        int len = strlen(args[i]);
+        String* s = &runtime.command_line_args.data[i];
+        s->data  = malloc(len);       
+        s->count = len;
+        memcpy(s->data, args[i], len);
     }
-    print__("\n");
 
-
-    print__("join(), split() and replace():\n");    
-    {
-        String fruits[] = {
-            _("Apple"),
-            _("Banana"),
-            _("Cherry"),
-            _("Orange"),
-            _("Pear"),
-        };
-
-        print(temp(join_(fruits, " | ")));
-        print__("\n");
-    }
-    {
-        unsigned int count = 0;
-        String s = _("Apple, Banana, Cherry, Orange, Pear");
-        String* chunks = split_(s, ", ", &count);
-        for (int i = 0; i < count; i++) {
-            print(chunks[i]);
-            print__("\n");
-        }
-        free(chunks);
-
-        print(temp(replace_(s, ", ", " - ")));
-    }
-    print__("\n\n");
-
-
-    print__("format:\n");
-    {
-        int    a = 42;
-        float  b = 6.28;
-        String c = _("I'm a string!!!");
-        print_("a is {}, b is {}, c is {}\n", format_s32(a, 10), format_f32(b), c);
-    }
-    print__("\n");
-}
-
-
-void test_c() {
-
-
-    printf("view(), concat() and temp():\n");
-    {
-        char* a = "this is ";
-        char* b = "a string\n";
-        
-        char* c = malloc(sizeof(char) * (strlen(a) + strlen(b) + 1));
-        strcpy(c, a);
-        strcat(c, b);
-        
-        printf(c);
-        printf(c + 5);
-        free(c);
-    }
-    {
-        char* a = "this is ";
-        char* b = "really a ";
-        char* c = "string\n";
-
-        char* d = malloc(sizeof(char) * (strlen(a) + strlen(b) + strlen(c) + 1));
-        strcpy(d, a); 
-        strcat(d, b); 
-        strcat(d, c);
-
-        printf(d);
-        free(d); 
-    }
-    printf("\n");
-
-
-    printf("join(), split() and replace():\n"); 
-    {        
-        char* fruits[] = {
-            "Apple",
-            "Banana",
-            "Cherry",
-            "Orange",
-            "Pear",
-        };
-
-        char* seperator = " | ";
-        int char_count = 0;
-        int count = sizeof(fruits) / sizeof(fruits[0]);
-        
-        for (int i = 0; i < count; i++) {
-            char_count += strlen(fruits[i]);
-        }
-
-        char_count += (count - 1) * strlen(seperator);
-
-        char* result = malloc(sizeof(char) * char_count + 1);
-        strcpy(result, fruits[0]);
-        for (int i = 1; i < count; i++) {
-            strcat(result, seperator);
-            strcat(result, fruits[i]);
-        }
-        
-        printf(result);
-        free(result);
-        printf("\n");
-    }
-    {
-        char s[] = "Apple, Banana, Cherry, Orange, Pear"; 
-        char* _s = malloc(sizeof(char) * strlen(s) + 1);
-        strcpy(_s, s);
-        
-        {
-            char* t;
-            char* seperator = ", ";
-            t = strtok(s, seperator);
-
-            while (t) {
-                printf("%s\n", t);
-                t = strtok(NULL, seperator);
-            }
-        }
-
-        {
-            char* t;
-            char* seperator = ", ";
-            t = strtok(_s, seperator);
-
-            while (t) {
-                if (t != _s) printf(" - ");
-                printf("%s", t);
-                t = strtok(NULL, seperator);
-            }
-        }
-    }
-    printf("\n\n");
-
-
-    printf("format:\n"); 
-    {
-        int   a = 42;
-        float b = 6.28;
-        char* c = "I'm a string!!!";
-        printf("a is %d, b is %f, c is %s\n", a, b, c);
-    }
-    printf("\n"); 
+    program();
 }
 
 
 
-int main() {
 
-    /*
-        quick speed test
-        String version slower at -O0, but faster in -O3
-        ~~~ sh
-        gcc string.c -std=c99 -Wall -pedantic -static -O3 && time ./a > temp
-        ~~~
-    */
-    /*    
-    for (int i = 0; i < 10000; i++) {
-        test();
-        test_c();
-    }
-    */
 
-    test();
-    // test_c();
+/* ==== Main Program ==== */
 
-    return 0;
+void program() {
+    
+    Array(String) args = runtime.command_line_args;
+    String password = args.count > 1 ? args.data[1] : string("purr purr");
+
+    runtime.alloc = temp_alloc;
+   
+    String s = string_replace(string("This is a string.\n"), string("string"), string("cat"));
+    print(s);
+    
+    print(
+        string("She is @ meters high, likes @, and has password @.\n"), 
+        format_s32(42, 10), 
+        string("atonal music"), 
+        base64_encode(password)
+    );
+
+    temp_info();
+
 }
