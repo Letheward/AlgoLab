@@ -620,7 +620,7 @@ void table_put(HashTable(String, String)* table, String key, String value) {
             key, table->keys[index], format_u32(hash, 16), format_u32(table->hashes[index], 16)
         );
 /*/
-        index = (index + 13) % table->allocated;
+        index = (index + hash) % table->allocated;
     }
 
     table->keys    [index] = key;
@@ -644,7 +644,7 @@ String table_get(HashTable(String, String)* table, String key) {
             key, table->keys[index], format_u32(hash, 16), format_u32(table->hashes[index], 16)
         );
 /*/
-        index = (index + 13) % table->allocated;
+        index = (index + hash) % table->allocated; 
         count++;
         if (count >= table->allocated) return string("");
     }
