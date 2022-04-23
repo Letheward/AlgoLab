@@ -65,7 +65,6 @@ Compiler gcc = {
 
 char* source_files[] = {
     "AoS_vs_SoA.c",
-    "better_syntax.c",
     "const.c",
     "matrix.c",
     "parse.c",
