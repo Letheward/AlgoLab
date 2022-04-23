@@ -116,6 +116,13 @@ void word(int w, int n) {
 
 int main() {
 
+    /*
+        the printed "sets" can be use for indices into an array,
+        so if you want to enumerate all possible outcomes 
+        following these math structures using an array of elements,
+        you can just take these algorithms, and modify all the printf()
+        to read/write array, store the indices, etc.
+    */
 
     printf("\nCombination:\n");
     combination(3);
