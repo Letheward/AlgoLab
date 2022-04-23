@@ -69,7 +69,7 @@ char* source_files[] = {
     "matrix.c",
     "parse.c",
     "pass_by_value.c",
-    "print.c",
+    "print_data.c",
     "probability.c",
     "string.c",
     "macro.c",

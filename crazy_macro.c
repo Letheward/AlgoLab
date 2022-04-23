@@ -78,17 +78,18 @@ DynamicArray(Type) array_init_ ## Type () {       \
     DynamicArray(String)* : array_add_(String)  \
 )(T, V);                                        \
 
-#define Define_array_add(Type)                                             \
-void array_add_ ## Type(DynamicArray(Type)* a, Type item) {                \
-                                                                           \
-    u64 wanted = a->base.count + 1;                                        \
-    if (wanted > a->allocated) {                                           \
-        a->base.data = a->resize(a->base.data, wanted * 2 * sizeof(Type)); \
-    }                                                                      \
-                                                                           \
-    a->base.data[a->base.count] = item;                                    \
-    a->base.count = wanted;                                                \
-}                                                                          \
+#define Define_array_add(Type)                                                   \
+void array_add_ ## Type(DynamicArray(Type)* a, Type item) {                      \
+                                                                                 \
+    u64 wanted = a->base.count + 1;                                              \
+    if (wanted > a->allocated) {                                                 \
+        a->base.data = a->resize(a->base.data, a->allocated * 2 * sizeof(Type)); \
+        a->allocated *= 2;                                                       \
+    }                                                                            \
+                                                                                 \
+    a->base.data[a->base.count] = item;                                          \
+    a->base.count = wanted;                                                      \
+}                                                                                \
 
 #define selection_sort_(Type) selection_sort_ ## Type
 #define selection_sort(T, C) _Generic((T),   \

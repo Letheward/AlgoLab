@@ -27,9 +27,8 @@ typedef struct {
 } String;
 
 typedef struct {
-    u8* data;
-    u64 count;
-    u64 allocated;
+    String base;
+    u64    allocated;
 } StringBuilder;
 
 
@@ -70,7 +69,6 @@ struct {
     void*         (*alloc)(u64);
     Array(String) command_line_args;
 } runtime;
-
 
 void* temp_alloc(u64 count) {
 
@@ -153,6 +151,37 @@ void time_it() {
 
 
 
+/* ==== StringBuilder: Basic ==== */
+
+// todo: can only use heap allocator now, how to change allocator?
+
+StringBuilder builder_init() {
+    return (StringBuilder) {
+        .base.data  = malloc(1024),
+        .base.count = 0,
+        .allocated  = 1024,
+    };
+}
+
+void builder_free(StringBuilder* b) {
+    free(b->base.data);
+}
+
+void builder_append(StringBuilder* b, String s) {
+    
+    u64 wanted = b->base.count + s.count;
+    while (wanted > b->allocated) {
+        b->base.data = realloc(b->base.data, b->allocated * 2);
+        b->allocated *= 2;
+    }
+
+    for (u64 i = 0; i < s.count; i++)  b->base.data[b->base.count + i] = s.data[i];
+    b->base.count = wanted;
+}
+
+
+
+
 
 /* ==== String: Basic ==== */
 
@@ -178,7 +207,7 @@ u8 string_equal(String a, String b) {
 // dumb linear search for now
 String string_find(String a, String b) {
     
-    if (a.data == NULL || b.data == NULL) return (String) {0};
+    if (!a.count || !b.count) return (String) {0};
     
     for (u64 i = 0; i < a.count; i++) {
         if (a.data[i] == b.data[0]) {
@@ -193,41 +222,8 @@ String string_find(String a, String b) {
     return (String) {0};
 }
 
-String string_concat(u64 count, ...) {
-    
-    u64 size = sizeof(String) * count;
-    Array(String) strings = {
-        .data  = temp_alloc(size),
-        .count = count,
-    };
-
-    String out = {0};
-    {
-        va_list args;
-        va_start(args, count);
-        for (int i = 0; i < count; i++) {
-            String s = va_arg(args, String);
-            strings.data[i] = s;
-            out.count += s.count;
-        }
-        va_end(args);
-    }
-
-    out.data = runtime.alloc(out.count);
-    
-    u64 counter = 0;
-    for (int i = 0; i < count; i++) {
-        String s = strings.data[i];
-        for (int j = 0; j < s.count; j++) {
-            out.data[counter + j] = s.data[j];
-        }
-        counter += s.count;
-    }
-    
-    return out;
-}
-
-String string_concat_array(Array(String) strings) {
+// if we want to use varargs, just make an stack array
+String string_concat(Array(String) strings) {
     
     u64 count = 0;
     for (u64 i = 0; i < strings.count; i++) {
@@ -306,7 +302,14 @@ String string_join(Array(String) s, String seperator) {
 }
 
 String string_replace(String s, String a, String b) {
+
+    void* (*old_alloc)(u64) = runtime.alloc; // ehh....
+    runtime.alloc = temp_alloc;
+    
     Array(String) chunks = string_split(s, a);
+   
+    runtime.alloc = old_alloc;
+    
     if (chunks.count < 2) return s;
     String result = string_join(chunks, b);
     return result;
@@ -316,7 +319,7 @@ String string_replace(String s, String a, String b) {
 
 
 
-/* ==== String: Formatting ==== */
+/* ==== String: Formatting & Transform ==== */
 
 String format_s32(s32 value, s32 base) {
 
@@ -431,39 +434,35 @@ String base64_encode(String in) {
     return (String) {data, count};
 }
 
-// todo: not robust, no escape with @, need more testing
-void print(String s, ...) {
-
-    Array(String) chunks = string_split(s, string("@"));
-    
-    if (chunks.count < 2) {
-        for (int i = 0; i < s.count; i++) putchar(s.data[i]);
-        return;
-    }
-    
-    u64 arg_count = chunks.count - 1;
-    String* args_data = temp_alloc(sizeof(String) * arg_count);
-
-    {
-        va_list args;
-        va_start(args, s);
-        for (u64 i = 0; i < arg_count; i++) args_data[i] = va_arg(args, String);
-        va_end(args);
-    }
-
-    String c = chunks.data[0];
-    for (u64 j = 0; j < c.count; j++) putchar(c.data[j]);
-
-    for (u64 i = 0; i < arg_count; i++) {
-        String c   = chunks.data[i + 1];
-        String arg = args_data[i]; 
-        for (u64 j = 0; j < arg.count; j++) putchar(arg.data[j]);
-        for (u64 j = 0; j < c.count;   j++) putchar(c.data[j]);
-    }
-
-    temp_free(sizeof(String) * arg_count);
+// basic print
+void print_string(String s) {
+    for (int i = 0; i < s.count; i++) putchar(s.data[i]);
 }
 
+// todo: not robust, no escape with @, need more testing, deal with switching back allocator
+void print(String s, ...) {
+    
+    void* (*old_alloc)(u64) = runtime.alloc; // ehh....
+    runtime.alloc = temp_alloc;
+    
+    Array(String) chunks = string_split(s, string("@"));
+   
+    runtime.alloc = old_alloc;
+    
+    if (chunks.count < 2) { print_string(s); return; }
+    
+    u64 arg_count = chunks.count - 1;
+    va_list args;
+    va_start(args, s);
+
+    print_string(chunks.data[0]);
+    for (u64 i = 0; i < arg_count; i++) {
+        print_string(va_arg(args, String)); // not safe, but this is C varargs, what can you do 
+        print_string(chunks.data[i + 1]);
+    }
+
+    va_end(args);
+}
 
 
 
@@ -471,6 +470,7 @@ void print(String s, ...) {
 
 /* ==== File IO ==== */
 
+// todo: do we really need to switch allocator?
 String load_file(char* path) {
 
     FILE* f = fopen(path, "rb");
@@ -483,7 +483,7 @@ String load_file(char* path) {
     count = ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    data = malloc(count);
+    data = runtime.alloc(count);
     fread(data, 1, count, f);
     fclose(f);
 
@@ -534,17 +534,33 @@ int main(int arg_count, char** args) {
 
 
 
-
 /* ==== Main Program ==== */
 
 void program() {
+
+
+    /* ---- Commandline Arguments ---- */
     
-    Array(String) args = runtime.command_line_args;
+    // if you want then get it, no need to write a different main() and worry about namespace pollution
+    Array(String) args = runtime.command_line_args; 
     String password = args.count > 1 ? args.data[1] : string("purr purr");
 
+
+    /* ---- String Builder ---- */
+    StringBuilder builder = builder_init();
+
+    builder_append(&builder, string("Password Detected: "));
+    builder_append(&builder, password);
+    builder_append(&builder, string("\n"));
+
+    print_string(builder.base);
+
+    builder_free(&builder);
+
+
+    /* ---- IO, String, Temp Allocator ---- */
     runtime.alloc = temp_alloc;
     
-    String code = load_file("string.c");
     String s = string_replace(string("This is a string.\n"), string("string"), string("cat"));
     
     print(s);
@@ -555,8 +571,11 @@ void program() {
         base64_encode(password)
     );
 
-    print(string("\nCode of this:\n@\n"), base64_encode(code));
-
+    String code = base64_encode(load_file("string.c")); // no leak here, because of allocator
+    print(string("\nCode of this:\n@\n"), code); 
+    
+    temp_reset();
     temp_info();
 
 }
+

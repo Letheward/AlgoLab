@@ -10,7 +10,7 @@ Read the code first, some files have their own build instructions.
 
 But for most files, just invoke your compiler from terminal and compile, like:
 ~~~ sh
-gcc print.c && ./a
+gcc print_data.c && ./a
 ~~~
 
 ## License
