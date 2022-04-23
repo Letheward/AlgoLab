@@ -222,7 +222,7 @@ String string_find(String a, String b) {
     return (String) {0};
 }
 
-// if we want to use varargs, just make an stack array
+// if we want to use varargs, just make a stack array
 String string_concat(Array(String) strings) {
     
     u64 count = 0;
