@@ -29,8 +29,8 @@ typedef unsigned char           bool; // always u8
 #define true  1
 #define false 0
 
-#define length_of(array) (sizeof(array) / sizeof(array[0]))
-#define string(s) (String) {(u8*) s, sizeof(s) - 1}
+#define length_of(array)   (sizeof(array) / sizeof(array[0]))
+#define string(s)          (String) {(u8*) s, sizeof(s) - 1}
 #define array(Type, array) (Array(Type)) {array, length_of(array)} // a little bit confusing
 
 #define Array(Type) Array_ ## Type

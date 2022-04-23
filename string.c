@@ -543,16 +543,19 @@ void program() {
     String password = args.count > 1 ? args.data[1] : string("purr purr");
 
     runtime.alloc = temp_alloc;
-   
-    String s = string_replace(string("This is a string.\n"), string("string"), string("cat"));
-    print(s);
     
+    String code = load_file("string.c");
+    String s = string_replace(string("This is a string.\n"), string("string"), string("cat"));
+    
+    print(s);
     print(
         string("She is @ meters high, likes @, and has password @.\n"), 
         format_s32(42, 10), 
         string("atonal music"), 
         base64_encode(password)
     );
+
+    print(string("\nCode of this:\n@\n"), base64_encode(code));
 
     temp_info();
 
