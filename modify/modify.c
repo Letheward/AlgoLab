@@ -66,6 +66,14 @@ void save_file(String in, char* path) {
     fclose(f);
 }
 
+/*
+    Usage:
+    
+    ~~~ sh
+    gcc test.c && gcc modify.c -o modify && ./modify && ./a &&
+    gcc test.c && gcc modify.c -o modify && ./modify && ./modified
+    ~~~
+*/
 
 
 int main() {
