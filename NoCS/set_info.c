@@ -93,8 +93,7 @@ void print_set_info(Array(SetInfo) info) {
         
         printf("Set {");
         for (int j = 0; j < set->count - 1; j++) {
-            u8 v = set->data[j];
-            printf("%d, ", v);
+            printf("%d, ", set->data[j]);
         }
         printf("%d}  Value: %d\n", set->data[set->count - 1], set->value);
     }
@@ -159,6 +158,7 @@ void print_all_set_tertian_form(Array(SetInfo) info, u8 is_pure) {
         }
         
         if (is_pure) {
+            
             for (int j = 0; j < set->count - 1; j++) {
                 int diff = temp[j + 1] - temp[j];
                 if (diff < 0) diff += 12;
