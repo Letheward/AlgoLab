@@ -2,4 +2,5 @@ ref
 *.exe
 *.s
 *.o
+*.mid
 temp
