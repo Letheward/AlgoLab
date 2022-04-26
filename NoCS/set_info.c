@@ -7,6 +7,22 @@
 
 
 
+/* ==== Macros ==== */
+
+#define string(s)            (String) {(u8*) s, sizeof(s) - 1}
+#define data_string(s)       (String) {(u8*) s, sizeof(s)}
+#define length_of(array)     (sizeof(array) / sizeof(array[0]))
+#define array(Type, c_array) (Array(Type)) {c_array, length_of(c_array)}
+
+#define Array(Type) Array_ ## Type
+#define Define_Array(Type) \
+typedef struct {           \
+    Type* data;            \
+    u64   count;           \
+} Array(Type)              \
+
+
+
 /* ==== Types ==== */
 
 typedef unsigned char           u8;
@@ -29,23 +45,6 @@ typedef struct {
     String base;
     u64    allocated;
 } StringBuilder;
-
-
-
-
-/* ==== Macros ==== */
-
-#define string(s)            (String) {(u8*) s, sizeof(s) - 1}
-#define data_string(s)       (String) {(u8*) s, sizeof(s)}
-#define length_of(array)     (sizeof(array) / sizeof(array[0]))
-#define array(Type, c_array) (Array(Type)) {c_array, length_of(c_array)}
-
-#define Array(Type) Array_ ## Type
-#define Define_Array(Type) \
-typedef struct {           \
-    Type* data;            \
-    u64   count;           \
-} Array(Type)              \
 
 Define_Array(String);
 
@@ -212,16 +211,15 @@ void save_file(String in, char* path) {
 /* ==== Set Info ==== */
 
 #define make_set(c_array) (Set) {c_array, length_of(c_array)}
-
 typedef struct {
-    int* data;
+    s32* data;
     u64  count;
 } Set;
 
 typedef struct {
     u8  data[12];
-    int count;
-    int value;
+    s32 count;
+    s32 value;
 } SetInfo;
 
 Define_Array(SetInfo);
@@ -470,7 +468,7 @@ A simple .mid file
 
 4d 54 72 6b      MTrk
 00 00 00 2c      length
-00 ff 03 00 
+00 ff 03 00      name
 
     note on            note off 
 00  90 48 66   83 60   80 48 66        
@@ -482,6 +480,10 @@ A simple .mid file
 
 */
 
+u16 swap_endian_u16(u16 in) {
+    return (in & 0x00ff) << 8 | (in & 0xff00) >> 8;
+}
+
 u32 swap_endian_u32(u32 in) {
     return (
         (in & 0x000000ff) << 24 |
@@ -491,84 +493,101 @@ u32 swap_endian_u32(u32 in) {
     );
 }
 
-String get_note(u8 note) {
+
+
+String get_global_tick(int tick_per_whole_note) {
+
+    String out = {temp_alloc(2), 2};
+    u16 tick = tick_per_whole_note / 4; 
+
+    *((u16*) out.data) = swap_endian_u16(tick);
+    *out.data &= 0x7f; // set top bit, only bpm for now
     
-    String out = {temp_alloc(9), 9};
-    
-    out.data[0] = 0x00;
-    
-    out.data[1] = 0x90;
-    out.data[2] = note;
-    out.data[3] = 0x66;
-
-    out.data[4] = 0x83;
-    out.data[5] = 0x60;
-
-    out.data[6] = 0x80;
-    out.data[7] = note;
-    out.data[8] = 0x66;
-
-    return out;   
-}
-
-String get_set_arp(Set set) {
-    
-    String out = {temp_alloc(9 * set.count), 9 * set.count};
-    
-    for (int i = 0; i < set.count; i++) {
-        out.data[9 * i + 0] = 0x00;
-        
-        out.data[9 * i + 1] = 0x90;
-        out.data[9 * i + 2] = 60 + set.data[i];
-        out.data[9 * i + 3] = 0x66;
-
-        out.data[9 * i + 4] = 0x83;
-        out.data[9 * i + 5] = 0x60;
-
-        out.data[9 * i + 6] = 0x80;
-        out.data[9 * i + 7] = 60 + set.data[i];
-        out.data[9 * i + 8] = 0x66;
-    }
-
     return out;
 }
 
-String get_set_chord(Set set) {
+// not used for now
+String get_note_length(int tick, int numer, int denom) {
+
+    String out = {temp_alloc(4), 4};
+    u32 dt = tick * numer / denom;
     
-    u64 count = 4 * 2 * set.count + 1; 
-    String out = {temp_alloc(count), count};
+    u32 buffer = dt & 0x7f;
+
+    // todo: clean up
+    while (dt >>= 7) {
+        buffer <<= 8;
+        buffer |= (dt & 0x7f) | 0x80;
+    }
     
-    u64 acc = 0;
-    for (int i = 0; i < set.count; i++) {
-      
-        out.data[4 * i + 0] = 0x00;
-        
-        out.data[4 * i + 1] = 0x90;
-        out.data[4 * i + 2] = 60 + set.data[i];
-        out.data[4 * i + 3] = 0x66;
-     
-        acc += 4;
+    int i;
+    for (i = 0; i < 4; i++) {
+        out.data[i] = buffer; 
+        if (buffer & 0x80) buffer >>= 8;
+        else break;
     }
-
-    out.data[acc    ] = 0x83;
-    out.data[acc + 1] = 0x60;
- 
-    out.data[acc + 2] = 0x80;
-    out.data[acc + 3] = 60 + set.data[0];
-    out.data[acc + 4] = 0x66;
-
-    acc += 5;
-
-    for (int i = 0; i < set.count - 1; i++) {
-      
-        out.data[acc + 4 * i + 0] = 0x00;
-        
-        out.data[acc + 4 * i + 1] = 0x80;
-        out.data[acc + 4 * i + 2] = 60 + set.data[i + 1];
-        out.data[acc + 4 * i + 3] = 0x66;
-    }
-
+    out.count = i + 1;
+    
     return out;
+}
+
+
+
+u64 append_note(StringBuilder* builder, u8 note) {
+    u64 count = 0;
+    u8  on_off[] = {0x00,  0x90, note, 0x66,   0x83, 0x60,   0x80, note, 0x66};
+    count += builder_append(builder, data_string(on_off));
+    return count;
+}
+
+u64 append_set_arp(StringBuilder* builder, Set set) {
+    u64 count = 0;
+    for (int i = 0; i < set.count; i++) {
+        u8 note[] = {
+            0x00, 
+            0x90, 60 + set.data[i], 0x66,
+            0x83, 0x60,
+            0x80, 60 + set.data[i], 0x66,
+        };
+        count += builder_append(builder, data_string(note));
+    }
+    return count;
+}
+
+// todo: clean up
+u64 append_set_info_arp(StringBuilder* builder, SetInfo* set) {
+    u64 count = 0;
+    for (int i = 0; i < set->count; i++) {
+        u8 note[] = {
+            0x00, 
+            0x90, 60 + set->data[i], 0x66,
+            0x83, 0x60,
+            0x80, 60 + set->data[i], 0x66,
+        };
+        count += builder_append(builder, data_string(note));
+    }
+    return count;
+}
+
+u64 append_set_chord(StringBuilder* builder, Set set) {
+
+    if (!set.count) return 0; // maybe add rest?
+    
+    u64 count = 0;
+    for (int i = 0; i < set.count; i++) {
+        u8 on[] = {0x00,    0x90, 60 + set.data[i], 0x66};
+        count += builder_append(builder, data_string(on));
+    }
+
+    u8 dt[] = {0x83, 0x60,   0x80, 60 + set.data[0], 0x66};
+    count += builder_append(builder, data_string(dt));
+
+    for (int i = 1; i < set.count; i++) {
+        u8 off[] = {0x00,    0x80, 60 + set.data[i], 0x66};
+        count += builder_append(builder, data_string(off));
+    }
+
+    return count;
 }
 
 
@@ -583,7 +602,7 @@ void save_midi_sample_code() {
             0x00, 0x00, 0x00, 0x06,
             0x00, 0x01,
             0x00, 0x01,
-            0x01, 0xe0,
+            0x01, 0xe0, // 480
         };
         stop_at += builder_append(&builder, data_string(info));
     }
@@ -595,27 +614,28 @@ void save_midi_sample_code() {
         u8 info[] = {0x00, 0xff, 0x03, 0x00};
         u8 end[]  = {0x00, 0xff, 0x2f, 0x00};
         
+        int dorian[] = {0, 2, 3, 5, 7, 9, 10};
+        int Cmin9[]  = {0, 3, 7, 10, 12 + 2};
+        int Dmin9[]  = {-2, 1, 5, 8, 12};
+        
         u64 count   = 0;
        
         builder_append(&builder, data_string(length));
 
         count += builder_append(&builder, data_string(info));
-
-        int dorian[] = {0, 2, 3, 5, 7, 9, 10};
-        int Cmin9[]  = {0, 3, 7, 10, 12 + 2};
-        int Dmin9[]  = {-2, 1, 5, 8, 12};
         
-        count += builder_append(&builder, get_set_arp(make_set(dorian)));
-
-        count += builder_append(&builder, get_set_chord(make_set(Cmin9)));
-        count += builder_append(&builder, get_set_chord(make_set(Cmin9)));
-        count += builder_append(&builder, get_set_chord(make_set(Dmin9)));
-        count += builder_append(&builder, get_set_chord(make_set(Dmin9)));
+        count += append_note(&builder, 60 - 2);
+        count += append_note(&builder, 60 + 2);
+        count += append_set_arp(&builder, make_set(dorian));
+        count += append_set_chord(&builder, make_set(Cmin9));
+        count += append_set_chord(&builder, make_set(Cmin9));
+        count += append_set_chord(&builder, make_set(Dmin9));
+        count += append_set_chord(&builder, make_set(Dmin9));
         
         count += builder_append(&builder, data_string(end));
         
-        u8* p = builder.base.data + stop_at; // for MTrk chunk's length
-        *((u32*) p) = swap_endian_u32((u32) count);
+        u32* p = (u32*) (builder.base.data + stop_at); // for MTrk chunk's length
+        *p = swap_endian_u32((u32) count);
     }
     
     save_file(builder.base, "test.mid");
@@ -626,6 +646,8 @@ void save_midi_sample_code() {
 void save_midi_for_sets(Array(SetInfo) sets, char* name) {
 
     StringBuilder builder = builder_init();
+
+    u16 tick = 1920;
     
     u64 stop_at = 0; // for MTrk chunk's length
     {
@@ -634,9 +656,9 @@ void save_midi_for_sets(Array(SetInfo) sets, char* name) {
             0x00, 0x00, 0x00, 0x06,
             0x00, 0x01,
             0x00, 0x01,
-            0x01, 0xe0,
         };
         stop_at += builder_append(&builder, data_string(info));
+        stop_at += builder_append(&builder, get_global_tick(tick));
     }
  
     {
@@ -652,19 +674,12 @@ void save_midi_for_sets(Array(SetInfo) sets, char* name) {
 
         count += builder_append(&builder, data_string(info));
 
-        for (u64 i = 0; i < sets.count; i++) {
-
-            // todo: clean up
-            int set[12] = {0};
-            SetInfo* si = &sets.data[i]; 
-            for (int i = 0; i < si->count; i++) set[i] = (int) si->data[i];
-
-            count += builder_append(&builder, get_set_arp((Set) {set, si->count}));
-        }
+        for (u64 i = 0; i < sets.count; i++)  count += append_set_info_arp(&builder, &sets.data[i]);
+        
         count += builder_append(&builder, data_string(end));
         
-        u8* p = builder.base.data + stop_at; // for MTrk chunk's length       
-        *((u32*) p) = swap_endian_u32((u32) count);
+        u32* p = (u32*) (builder.base.data + stop_at); // for MTrk chunk's length       
+        *p = swap_endian_u32((u32) count);
     }
     
     save_file(builder.base, name);
@@ -695,18 +710,19 @@ int main() {
 
     /* ---- Polarity Value ---- */
     {
+        /*
         int weighting[12] = {0, 0, 5, 4, 3, 2, 1, -5, -4, -3, -2, -1};
         //int weighting[12] = {0, 0, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1};
         translate_IC7_order_to_index_order(weighting);
         fill_all_polarity_values(all_sets, weighting);
 
         qsort(all_sets.data, all_sets.count, sizeof(SetInfo), compare_value_descend);
+        
         printf("All Sets by Polarity Value\n");
         print_set_info(all_sets);
         printf("\nPolarity Value Count Table\n");
         print_PV_count_table(all_sets, weighting); // todo: potential bug here for using other weighting
         
-        /*
         // example of printing one set
         int set[] = {0, 2, 4, 6, 9};
         print_set_PV_from_weighting(make_set(set), weighting);
@@ -720,7 +736,7 @@ int main() {
         print_tertian_form(pts);
         save_midi_for_sets(pts, "pts.mid");    
     }
-
+    
 }
 
 
