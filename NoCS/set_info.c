@@ -216,6 +216,7 @@ typedef struct {
     u64  count;
 } Set;
 
+// todo: merge this with Set?
 typedef struct {
     u8  data[12];
     s32 count;
@@ -223,6 +224,14 @@ typedef struct {
 } SetInfo;
 
 Define_Array(SetInfo);
+
+
+// todo: cleanup
+Set temp_set_from_set_info(SetInfo info) {
+    Set set = {temp_alloc(info.count * sizeof(int)), info.count};
+    for (int i = 0; i < info.count; i++) set.data[i] = info.data[i];
+    return set;
+}
 
 
 Array(SetInfo) get_all_set_info() {
@@ -345,8 +354,9 @@ void print_tertian_form(Array(SetInfo) sets) {
     }
 }
 
+
 // todo: handle non-generated sets, cleanup and refactor
-Array(SetInfo) get_all_pure_tertian_set(Array(SetInfo) sets) {
+Array(SetInfo) get_pure_tertian_sets(Array(SetInfo) sets) {
 
     Array(SetInfo) out = {temp_alloc(28 * sizeof(SetInfo)), 28};
     
@@ -379,9 +389,31 @@ Array(SetInfo) get_all_pure_tertian_set(Array(SetInfo) sets) {
         next: continue;
     }
 
+    out.count = acc;
+
     return out;   
 }
 
+// todo: maybe slow
+Array(SetInfo) get_sets_by_PV(Array(SetInfo) sets, int value) {
+
+    u64 count = 0;
+    for (u64 i = 0; i < sets.count; i++) {
+        if (sets.data[i].value == value) count++;
+    }
+    
+    Array(SetInfo) out = {temp_alloc(count * sizeof(SetInfo)), count};
+    
+    u64 acc = 0;
+    for (u64 i = 0; i < sets.count; i++) {
+        if (sets.data[i].value == value) {
+            out.data[acc] = sets.data[i];
+            acc++;
+        }
+    }
+    
+    return out;
+}
 
 
 
@@ -419,13 +451,13 @@ int compare_value_descend(const void* a, const void* b) {
     else              return  0;
 }
 
-int compare_count_descend(const void* a, const void* b) {
+int compare_count_ascend(const void* a, const void* b) {
     SetInfo* sa = (SetInfo*) a;
     SetInfo* sb = (SetInfo*) b;
     int ac = sa->count;
     int bc = sb->count;
-    if      (ac < bc) return  1;
-    else if (ac > bc) return -1;
+    if      (ac > bc) return  1;
+    else if (ac < bc) return -1;
     else              return  0;
 }
 
@@ -494,7 +526,7 @@ u32 swap_endian_u32(u32 in) {
 }
 
 
-
+// not used for now
 String get_global_tick(int tick_per_whole_note) {
 
     String out = {temp_alloc(2), 2};
@@ -532,7 +564,6 @@ String get_note_length(int tick, int numer, int denom) {
 }
 
 
-
 u64 append_note(StringBuilder* builder, u8 note) {
     u64 count = 0;
     u8  on_off[] = {0x00,  0x90, note, 0x66,   0x83, 0x60,   0x80, note, 0x66};
@@ -548,21 +579,6 @@ u64 append_set_arp(StringBuilder* builder, Set set) {
             0x90, 60 + set.data[i], 0x66,
             0x83, 0x60,
             0x80, 60 + set.data[i], 0x66,
-        };
-        count += builder_append(builder, data_string(note));
-    }
-    return count;
-}
-
-// todo: clean up
-u64 append_set_info_arp(StringBuilder* builder, SetInfo* set) {
-    u64 count = 0;
-    for (int i = 0; i < set->count; i++) {
-        u8 note[] = {
-            0x00, 
-            0x90, 60 + set->data[i], 0x66,
-            0x83, 0x60,
-            0x80, 60 + set->data[i], 0x66,
         };
         count += builder_append(builder, data_string(note));
     }
@@ -591,7 +607,8 @@ u64 append_set_chord(StringBuilder* builder, Set set) {
 }
 
 
-void save_midi_sample_code() {
+
+void save_midi_for_sets(Array(SetInfo) sets, u64 (*append)(StringBuilder*, Array(SetInfo)), char* name) {
 
     StringBuilder builder = builder_init();
     
@@ -610,60 +627,6 @@ void save_midi_sample_code() {
     {
         stop_at += builder_append(&builder, string("MTrk"));
 
-        u8 length[4]; // stop at
-        u8 info[] = {0x00, 0xff, 0x03, 0x00};
-        u8 end[]  = {0x00, 0xff, 0x2f, 0x00};
-        
-        int dorian[] = {0, 2, 3, 5, 7, 9, 10};
-        int Cmin9[]  = {0, 3, 7, 10, 12 + 2};
-        int Dmin9[]  = {-2, 1, 5, 8, 12};
-        
-        u64 count   = 0;
-       
-        builder_append(&builder, data_string(length));
-
-        count += builder_append(&builder, data_string(info));
-        
-        count += append_note(&builder, 60 - 2);
-        count += append_note(&builder, 60 + 2);
-        count += append_set_arp(&builder, make_set(dorian));
-        count += append_set_chord(&builder, make_set(Cmin9));
-        count += append_set_chord(&builder, make_set(Cmin9));
-        count += append_set_chord(&builder, make_set(Dmin9));
-        count += append_set_chord(&builder, make_set(Dmin9));
-        
-        count += builder_append(&builder, data_string(end));
-        
-        u32* p = (u32*) (builder.base.data + stop_at); // for MTrk chunk's length
-        *p = swap_endian_u32((u32) count);
-    }
-    
-    save_file(builder.base, "test.mid");
-    builder_free(&builder); 
-}
-
-
-void save_midi_for_sets(Array(SetInfo) sets, char* name) {
-
-    StringBuilder builder = builder_init();
-
-    u16 tick = 1920;
-    
-    u64 stop_at = 0; // for MTrk chunk's length
-    {
-        stop_at += builder_append(&builder, string("MThd"));
-        u8 info[] = {
-            0x00, 0x00, 0x00, 0x06,
-            0x00, 0x01,
-            0x00, 0x01,
-        };
-        stop_at += builder_append(&builder, data_string(info));
-        stop_at += builder_append(&builder, get_global_tick(tick));
-    }
- 
-    {
-        stop_at += builder_append(&builder, string("MTrk"));
-
         u8 length[4] = {0}; // stop at
         u8 info[]    = {0x00, 0xff, 0x03, 0x00};
         u8 end[]     = {0x00, 0xff, 0x2f, 0x00};
@@ -673,9 +636,7 @@ void save_midi_for_sets(Array(SetInfo) sets, char* name) {
         builder_append(&builder, data_string(length));
 
         count += builder_append(&builder, data_string(info));
-
-        for (u64 i = 0; i < sets.count; i++)  count += append_set_info_arp(&builder, &sets.data[i]);
-        
+        count += append(&builder, sets);
         count += builder_append(&builder, data_string(end));
         
         u32* p = (u32*) (builder.base.data + stop_at); // for MTrk chunk's length       
@@ -685,6 +646,64 @@ void save_midi_for_sets(Array(SetInfo) sets, char* name) {
     save_file(builder.base, name);
     builder_free(&builder); 
 }
+
+
+
+/* ---- save_midi_for_sets()'s "lambda functions" ---- */
+
+u64 for_sets_do_nothing_but_append_sample_code(StringBuilder* builder, Array(SetInfo) sets) {
+    
+    u64 count = 0;
+
+    int dorian[] = {0, 2, 3, 5, 7, 9, 10};
+    int Cmin9[]  = {0, 3, 7, 10, 12 + 2};
+    int Dmin9[]  = {2, 5, 9, 12, 12 + 4};
+    
+    count += append_note(builder, 60 - 2);
+    count += append_note(builder, 60 + 2);
+    count += append_set_arp(builder, make_set(dorian));
+    count += append_set_chord(builder, make_set(Cmin9));
+    count += append_set_chord(builder, make_set(Cmin9));
+    count += append_set_chord(builder, make_set(Dmin9));
+    count += append_set_chord(builder, make_set(Dmin9));
+    
+    return count;
+}
+
+u64 for_sets_append_arp(StringBuilder* builder, Array(SetInfo) sets) {
+    u64 count = 0;
+    for (u64 i = 0; i < sets.count; i++) {
+        count += append_set_arp(builder, temp_set_from_set_info(sets.data[i]));
+    }
+    return count;
+}
+
+u64 for_sets_append_tertian_form_chord(StringBuilder* builder, Array(SetInfo) sets) {
+    
+    u64 count = 0;
+    for (u64 i = 0; i < sets.count; i++) {
+         
+        SetInfo* set = &sets.data[i];
+        if (set->count % 2 == 0)  continue;
+        
+        int temp[12];
+        for (int j = 0; j < set->count; j++) {
+            int k = j * 2 % set->count;
+            temp[j] = set->data[k]; 
+        }
+        
+        for (int j = 0; j < set->count - 1; j++) {
+            int a = temp[j];
+            int b = temp[j + 1];
+            if (b <= a) temp[j + 1] += 12;
+        }
+        
+        count += append_set_chord(builder, (Set) {temp, set->count});
+    }
+
+    return count;
+}
+
 
 
 
@@ -706,23 +725,23 @@ int main() {
     }
 
     Array(SetInfo) all_sets = get_all_set_info();
-    save_midi_for_sets(all_sets, "all_sets.mid");    
+    save_midi_for_sets(all_sets, for_sets_append_arp, "all_sets.mid");
 
     /* ---- Polarity Value ---- */
     {
-        /*
         int weighting[12] = {0, 0, 5, 4, 3, 2, 1, -5, -4, -3, -2, -1};
         //int weighting[12] = {0, 0, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1};
         translate_IC7_order_to_index_order(weighting);
         fill_all_polarity_values(all_sets, weighting);
 
-        qsort(all_sets.data, all_sets.count, sizeof(SetInfo), compare_value_descend);
+        qsort(all_sets.data, all_sets.count, sizeof(SetInfo), compare_count_ascend_then_value_descend);
         
         printf("All Sets by Polarity Value\n");
         print_set_info(all_sets);
         printf("\nPolarity Value Count Table\n");
         print_PV_count_table(all_sets, weighting); // todo: potential bug here for using other weighting
         
+        /*
         // example of printing one set
         int set[] = {0, 2, 4, 6, 9};
         print_set_PV_from_weighting(make_set(set), weighting);
@@ -731,14 +750,14 @@ int main() {
 
     /* ---- Tertian Form ---- */
     {
-        Array(SetInfo) pts = get_all_pure_tertian_set(all_sets);
+        Array(SetInfo) pts = get_pure_tertian_sets(all_sets);
         printf("\nPure Tertian Sets\n");
         print_tertian_form(pts);
-        save_midi_for_sets(pts, "pts.mid");    
+        
+        save_midi_for_sets(pts, for_sets_append_arp, "pts.mid");
+        save_midi_for_sets(pts, for_sets_append_tertian_form_chord, "pts_tertian.mid");
     }
     
 }
-
-
 
 
