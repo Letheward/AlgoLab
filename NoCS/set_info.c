@@ -693,9 +693,7 @@ u64 for_sets_append_tertian_form_chord(StringBuilder* builder, Array(SetInfo) se
         }
         
         for (int j = 0; j < set->count - 1; j++) {
-            int a = temp[j];
-            int b = temp[j + 1];
-            if (b <= a) temp[j + 1] += 12;
+            while (temp[j] <= temp[j + 1]) temp[j + 1] += 12;
         }
         
         count += append_set_chord(builder, (Set) {temp, set->count});
