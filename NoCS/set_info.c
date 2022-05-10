@@ -457,7 +457,7 @@ void print_set(Set set) {
 }
 
 
-// the info chosen in print_set_infos()'s options need to be initialized
+// the info chosen in print_set_info()'s options need to be initialized
 typedef enum {
     SET_INFO__MANY_LINE    = 0x01,
     SET_INFO__POLARITY     = 0x02,
@@ -469,7 +469,7 @@ typedef enum {
 } Print_Set_Info_Options;
 
 // note: this is somewhat complicated, maybe just copy and using different version?
-void print_set_infos(Array(SetInfo) sets, Print_Set_Info_Options options) {
+void print_set_info(Array(SetInfo) sets, Print_Set_Info_Options options) {
 
     for (int i = 0; i < sets.count; i++) {
         
@@ -924,7 +924,7 @@ int main() {
         Array(SetInfo) sets = get_sets_by_UIV(all_sets, uiv);
         
         qsort(sets.data, sets.count, sizeof(SetInfo), compare_OIV_descend);
-        print_set_infos(sets, SET_INFO__IV_ORDERED | SET_INFO__IV_UNORDERED | SET_INFO__MANY_LINE);
+        print_set_info(sets, SET_INFO__IV_ORDERED | SET_INFO__IV_UNORDERED | SET_INFO__MANY_LINE);
         save_midi_for_sets(sets, for_sets_append_arp, "uiv_test.mid");
     }
 
@@ -937,10 +937,10 @@ int main() {
         fill_polarity_values(all_sets, weighting);
         
         Array(SetInfo) sets = get_sets_by_PV(get_sets_by_size(all_sets, 7), 0);
-        print_set_infos(sets, 0);
+        print_set_info(sets, 0);
         
         qsort(all_sets.data, all_sets.count, sizeof(SetInfo), compare_count_ascend_then_value_descend);
-        //print_set_infos(all_sets, SET_INFO__POLARITY);
+        //print_set_info(all_sets, SET_INFO__POLARITY);
         
         printf("\nPolarity Value Count Table\n");
         print_PV_count_table(all_sets, weighting); // todo: potential bug here for using other weighting
@@ -956,14 +956,14 @@ int main() {
         /*/
         Array(SetInfo) pts = get_pure_tertian_sets(all_sets);
         printf("\nPure Tertian Sets\n");
-        print_set_infos(pts, SET_INFO__TERTIAN);
+        print_set_info(pts, SET_INFO__TERTIAN);
         
         save_midi_for_sets(pts, for_sets_append_arp, "pts.mid");
         save_midi_for_sets(pts, for_sets_append_tertian_form_chord, "pts_tertian.mid");
         /*/
     }
     
-    //print_set_infos(all_sets, SET_INFO__ALL);
+    //print_set_info(all_sets, SET_INFO__ALL);
 }
 
 
