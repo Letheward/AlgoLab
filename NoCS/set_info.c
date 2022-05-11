@@ -459,13 +459,13 @@ void print_set(Set set) {
 
 // the info chosen in print_set_info()'s options need to be initialized
 typedef enum {
-    SET_INFO__MANY_LINE    = 0x01,
-    SET_INFO__POLARITY     = 0x02,
-    SET_INFO__IV_ORDERED   = 0x04,
-    SET_INFO__IV_UNORDERED = 0x08,
-    SET_INFO__TERTIAN      = 0x10,
+    INFO_MANY_LINE    = 0x01,
+    INFO_POLARITY     = 0x02,
+    INFO_IV_ORDERED   = 0x04,
+    INFO_IV_UNORDERED = 0x08,
+    INFO_TERTIAN      = 0x10,
 
-    SET_INFO__ALL          = 0xffffffff, // may change
+    INFO_ALL          = 0xffffffff, // may change
 } Print_Set_Info_Options;
 
 // note: this is somewhat complicated, maybe just copy and using different version?
@@ -481,9 +481,9 @@ void print_set_info(Array(SetInfo) sets, Print_Set_Info_Options options) {
         }
         printf("%d}", set->data[set->count - 1]);
         
-        if (options & SET_INFO__MANY_LINE) printf("\n");
+        if (options & INFO_MANY_LINE) printf("\n");
 
-        if (options & SET_INFO__TERTIAN) {
+        if (options & INFO_TERTIAN) {
             
             int temp[12];
             for (int j = 0; j < set->count; j++) {
@@ -496,28 +496,28 @@ void print_set_info(Array(SetInfo) sets, Print_Set_Info_Options options) {
             printf("{");
             for (int j = 0; j < set->count - 1; j++)  printf("%d, ", temp[j]);
             printf("%d}", temp[set->count - 1]);
-            if (options & SET_INFO__MANY_LINE) printf("\n");
+            if (options & INFO_MANY_LINE) printf("\n");
         }
  
-        if (options & SET_INFO__POLARITY) {
+        if (options & INFO_POLARITY) {
             printf("    Polarity Value: %d ", set->polarity_value);
-            if (options & SET_INFO__MANY_LINE) printf("\n");
+            if (options & INFO_MANY_LINE) printf("\n");
         }
 
-        if (options & SET_INFO__IV_ORDERED) {
+        if (options & INFO_IV_ORDERED) {
             printf("    Ordered   Interval Vector: ");
             for (int j = 0; j < 11; j++) {
                 printf("%d ", set->interval_vector_ordered[j]);
             }
-            if (options & SET_INFO__MANY_LINE) printf("\n");
+            if (options & INFO_MANY_LINE) printf("\n");
         }
         
-        if (options & SET_INFO__IV_UNORDERED) {
+        if (options & INFO_IV_UNORDERED) {
             printf("    Unordered Interval Vector: ");
             for (int j = 0; j < 6; j++) {
                 printf("%d ", set->interval_vector_unordered[j]);
             }
-            if (options & SET_INFO__MANY_LINE) printf("\n");
+            if (options & INFO_MANY_LINE) printf("\n");
         }
        
         printf("\n");
@@ -924,7 +924,7 @@ int main() {
         Array(SetInfo) sets = get_sets_by_UIV(all_sets, uiv);
         
         qsort(sets.data, sets.count, sizeof(SetInfo), compare_OIV_descend);
-        print_set_info(sets, SET_INFO__IV_ORDERED | SET_INFO__IV_UNORDERED | SET_INFO__MANY_LINE);
+        print_set_info(sets, INFO_IV_ORDERED | INFO_IV_UNORDERED | INFO_MANY_LINE);
         save_midi_for_sets(sets, for_sets_append_arp, "uiv_test.mid");
     }
 
@@ -940,7 +940,7 @@ int main() {
         print_set_info(sets, 0);
         
         qsort(all_sets.data, all_sets.count, sizeof(SetInfo), compare_count_ascend_then_value_descend);
-        //print_set_info(all_sets, SET_INFO__POLARITY);
+        //print_set_info(all_sets, INFO_POLARITY);
         
         printf("\nPolarity Value Count Table\n");
         print_PV_count_table(all_sets, weighting); // todo: potential bug here for using other weighting
@@ -956,14 +956,14 @@ int main() {
         /*/
         Array(SetInfo) pts = get_pure_tertian_sets(all_sets);
         printf("\nPure Tertian Sets\n");
-        print_set_info(pts, SET_INFO__TERTIAN);
+        print_set_info(pts, INFO_TERTIAN);
         
         save_midi_for_sets(pts, for_sets_append_arp, "pts.mid");
         save_midi_for_sets(pts, for_sets_append_tertian_form_chord, "pts_tertian.mid");
         /*/
     }
     
-    //print_set_info(all_sets, SET_INFO__ALL);
+    //print_set_info(all_sets, INFO_ALL);
 }
 
 
