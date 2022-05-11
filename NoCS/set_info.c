@@ -21,6 +21,9 @@ typedef struct {           \
     u64   count;           \
 } Array(Type)              \
 
+#define sort(array, f) qsort(array.data, array.count, sizeof(array.data[0]), f)
+
+
 
 
 /* ==== Types ==== */
@@ -122,7 +125,6 @@ void error(char* s, ...) {
     exit(1); 
 }
 
-// todo: slow
 void print_data(String s) {
     for (u64 i = 0; i < s.count; i++) {
         if (i % 16 == 0 && i) printf("\n");
@@ -232,6 +234,123 @@ typedef struct {
 } SetInfo;
 
 Define_Array(SetInfo);
+
+
+
+
+
+/* ---- Set Info: Helpers ---- */
+
+//  0 6   7 2 9 4 11   5 10 3 8  1
+//  to
+//  0 1   2 3 4 5 6    7 8  9 10 11
+void translate_IC7_order_to_index_order(int* weighting) {
+
+    int copy[12];
+    for (int i = 0; i < 12; i++) copy[i] = weighting[i];
+    
+    weighting[0 ]  = copy[0];
+    weighting[6 ]  = copy[1];
+    weighting[7 ]  = copy[2];
+    weighting[2 ]  = copy[3];
+    weighting[9 ]  = copy[4];
+    weighting[4 ]  = copy[5];
+    weighting[11]  = copy[6];
+    weighting[5 ]  = copy[7];
+    weighting[10]  = copy[8];
+    weighting[3 ]  = copy[9];
+    weighting[8 ]  = copy[10];
+    weighting[1 ]  = copy[11];
+}
+
+int compare_value_descend(const void* a, const void* b) {
+    SetInfo* sa = (SetInfo*) a;
+    SetInfo* sb = (SetInfo*) b;
+    int av = sa->polarity_value;
+    int bv = sb->polarity_value;
+    if (av < bv) return  1;
+    if (av > bv) return -1;
+    return  0;
+}
+
+int compare_count_ascend(const void* a, const void* b) {
+    SetInfo* sa = (SetInfo*) a;
+    SetInfo* sb = (SetInfo*) b;
+    int ac = sa->count;
+    int bc = sb->count;
+    if (ac > bc) return  1;
+    if (ac < bc) return -1;
+    return  0;
+}
+   
+int compare_count_ascend_then_value_descend(const void* a, const void* b) {
+    int count = compare_count_ascend( a, b);
+    int value = compare_value_descend(a, b);
+    if (count != 0) return count;
+    return value;
+}
+
+
+int compare_UIV_descend(const void* a, const void* b) {
+
+    SetInfo* sa = (SetInfo*) a;
+    SetInfo* sb = (SetInfo*) b;
+    
+    s32* av = sa->interval_vector_unordered;
+    s32* bv = sb->interval_vector_unordered;
+    
+    for (int i = 0; i < 6; i++) {
+        s32 ac = av[i];
+        s32 bc = bv[i];
+        if (ac < bc) return  1;
+        if (ac > bc) return -1;
+    }
+
+    return 0;
+}
+
+int compare_OIV_descend(const void* a, const void* b) {
+
+    SetInfo* sa = (SetInfo*) a;
+    SetInfo* sb = (SetInfo*) b;
+    
+    s32* av = sa->interval_vector_ordered;
+    s32* bv = sb->interval_vector_ordered;
+    
+    for (int i = 0; i < 11; i++) {
+        s32 ac = av[i];
+        s32 bc = bv[i];
+        if (ac < bc) return  1;
+        if (ac > bc) return -1;
+    }
+
+    return 0;
+}
+
+int compare_UIV_OIV_descend(const void* a, const void* b) {
+    int UIV = compare_UIV_descend(a, b);
+    int OIV = compare_OIV_descend(a, b);
+    if (UIV != 0) return UIV;
+    return OIV;
+}
+
+int compare_OIV_UIV_descend(const void* a, const void* b) {
+    int OIV = compare_OIV_descend(a, b);
+    int UIV = compare_UIV_descend(a, b);
+    if (OIV != 0) return OIV;
+    return UIV;
+}
+
+int compare_count_ascend_UIV_OIV_descend(const void* a, const void* b) {
+
+    int count = compare_count_ascend(a, b);
+    int UIV   = compare_UIV_descend( a, b);
+    int OIV   = compare_OIV_descend( a, b);
+
+    if (count != 0) return count;
+    if (UIV   != 0) return UIV;
+    return OIV;
+}
 
 
 
@@ -464,8 +583,7 @@ typedef enum {
     INFO_IV_ORDERED   = 0x04,
     INFO_IV_UNORDERED = 0x08,
     INFO_TERTIAN      = 0x10,
-
-    INFO_ALL          = 0xffffffff, // may change
+    INFO_ALL          = 0xffff, // may change
 } Print_Set_Info_Options;
 
 // note: this is somewhat complicated, maybe just copy and using different version?
@@ -525,7 +643,7 @@ void print_set_info(Array(SetInfo) sets, Print_Set_Info_Options options) {
 }
 
 
-// set's length must be under 12, weighting's length must be 12 or more
+// set's length must be under or equal to 12 and in one octave, weighting's length must be 12 or more
 void print_PV_from_weighting(Set set, int* weighting) {
     
     printf("Set {");
@@ -543,6 +661,61 @@ void print_PV_from_weighting(Set set, int* weighting) {
     printf("%d}  Value %d \n", e, value);
 }
 
+void print_OIV(Set set) {
+
+    int iv[11] = {0};
+    for (u64 i = 0; i < set.count; i++) {
+        for (u64 j = i + 1; j < set.count; j++) {
+            int index = set.data[j] - set.data[i];
+           
+            if (index <= 0 || index > 11) {
+                error("You pass a wrong set to print_OIV(), it must be monotonic and is in one octave.\n");
+            }
+            
+            iv[index - 1] += 1;
+        }
+    }
+
+    printf("Set {");
+    for (int j = 0; j < set.count - 1; j++) {
+        printf("%d, ", set.data[j]);
+    }
+    printf("%d} ", set.data[set.count - 1]);
+
+    printf("Ordered Interval Vector: ");
+    for (int i = 0; i < 11; i++) printf("%d ", iv[i]);
+    printf("\n");
+}
+
+void print_UIV(Set set) {
+
+    int iv[6] = {0};
+    for (u64 i = 0; i < set.count; i++) {
+        for (u64 j = i + 1; j < set.count; j++) {
+            int index = set.data[j] - set.data[i];
+            if (index > 6) index = 12 - index;
+
+            if (index <= 0 || index > 6) {
+                error("You pass a wrong set to print_UIV(), it must be monotonic and is in one octave.\n");
+            }
+           
+            iv[index - 1] += 1;
+        }
+    }
+
+    printf("Set {");
+    for (int j = 0; j < set.count - 1; j++) {
+        printf("%d, ", set.data[j]);
+    }
+    printf("%d} ", set.data[set.count - 1]);
+
+    printf("Unordered Interval Vector: ");
+    for (int i = 0; i < 6; i++) printf("%d ", iv[i]);
+    printf("\n");
+}
+
+
+// must have the info first, weighting's length must be 12 or more
 void print_PV_count_table(Array(SetInfo) sets, int* weighting) {
     
     int upper = 0;    
@@ -570,106 +743,76 @@ void print_PV_count_table(Array(SetInfo) sets, int* weighting) {
     free(table);
 }
 
-
-
-
-/* ---- Set Info: Helpers ---- */
-
-//  0 6   7 2 9 4 11   5 10 3 8  1
-//  to
-//  0 1   2 3 4 5 6    7 8  9 10 11
-void translate_IC7_order_to_index_order(int* weighting) {
-
-    int copy[12];
-    for (int i = 0; i < 12; i++) copy[i] = weighting[i];
+// must have the info first
+void print_OIV_count_table(Array(SetInfo) sets) {
     
-    weighting[0 ]  = copy[0];
-    weighting[6 ]  = copy[1];
-    weighting[7 ]  = copy[2];
-    weighting[2 ]  = copy[3];
-    weighting[9 ]  = copy[4];
-    weighting[4 ]  = copy[5];
-    weighting[11]  = copy[6];
-    weighting[5 ]  = copy[7];
-    weighting[10]  = copy[8];
-    weighting[3 ]  = copy[9];
-    weighting[8 ]  = copy[10];
-    weighting[1 ]  = copy[11];
+    sort(sets, compare_OIV_descend);
+    
+    const int iv_count = 11;
+    
+    u64 count       = 1;
+    u64 total_count = 1;
+
+    for (u64 i = 1; i < sets.count; i++) {
+
+        int* prev = sets.data[i - 1].interval_vector_ordered;
+        int* now  = sets.data[i    ].interval_vector_ordered;
+        
+        for (int i = 0; i < iv_count; i++) {
+            if (now[i] != prev[i]) goto not_same;
+        }
+
+        count++;
+        continue;
+
+        not_same:
+        for (int i = 0; i < iv_count; i++) printf("%d ", prev[i]);
+        printf("Count: %llu\n", count);
+        count = 1;
+        total_count++;
+    }
+    
+    int* prev = sets.data[sets.count - 1].interval_vector_ordered;
+    for (int i = 0; i < iv_count; i++) printf("%d ", prev[i]);
+    printf("Count: %llu\n", count);
+    
+    printf("Total Different OIV: %llu\n\n", total_count);
 }
 
-int compare_value_descend(const void* a, const void* b) {
-    SetInfo* sa = (SetInfo*) a;
-    SetInfo* sb = (SetInfo*) b;
-    int av = sa->polarity_value;
-    int bv = sb->polarity_value;
-    if (av < bv) return  1;
-    if (av > bv) return -1;
-    return  0;
-}
+// must have the info first
+void print_UIV_count_table(Array(SetInfo) sets) {
+    
+    sort(sets, compare_UIV_descend);
 
-int compare_count_ascend(const void* a, const void* b) {
-    SetInfo* sa = (SetInfo*) a;
-    SetInfo* sb = (SetInfo*) b;
-    int ac = sa->count;
-    int bc = sb->count;
-    if (ac > bc) return  1;
-    if (ac < bc) return -1;
-    return  0;
-}
+    const int iv_count = 6;
+    
+    u64 count       = 1;
+    u64 total_count = 1;
+
+    for (u64 i = 1; i < sets.count; i++) {
+
+        int* prev = sets.data[i - 1].interval_vector_unordered;
+        int* now  = sets.data[i    ].interval_vector_unordered;
+        
+        for (int i = 0; i < iv_count; i++) {
+            if (now[i] != prev[i]) goto not_same;
+        }
+       
+        count++;
+        continue;
+
+        not_same:
+        for (int i = 0; i < iv_count; i++) printf("%d ", prev[i]);
+        printf("Count: %llu\n", count);
+        count = 1;
+        total_count++;
+    }
+ 
+    int* prev = sets.data[sets.count - 1].interval_vector_unordered;
+    for (int i = 0; i < iv_count; i++) printf("%d ", prev[i]);
+    printf("Count: %llu\n", count);
    
-int compare_count_ascend_then_value_descend(const void* a, const void* b) {
-    int count = compare_count_ascend( a, b);
-    int value = compare_value_descend(a, b);
-    if (count != 0) return count;
-    return value;
-}
-
-
-int compare_UIV_descend(const void* a, const void* b) {
-
-    SetInfo* sa = (SetInfo*) a;
-    SetInfo* sb = (SetInfo*) b;
-    
-    s32* av = sa->interval_vector_unordered;
-    s32* bv = sb->interval_vector_unordered;
-    
-    for (int i = 0; i < 6; i++) {
-        s32 ac = av[i];
-        s32 bc = bv[i];
-        if (ac < bc) return  1;
-        if (ac > bc) return -1;
-    }
-
-    return  0;
-}
-
-int compare_OIV_descend(const void* a, const void* b) {
-
-    SetInfo* sa = (SetInfo*) a;
-    SetInfo* sb = (SetInfo*) b;
-    
-    s32* av = sa->interval_vector_ordered;
-    s32* bv = sb->interval_vector_ordered;
-    
-    for (int i = 0; i < 11; i++) {
-        s32 ac = av[i];
-        s32 bc = bv[i];
-        if (ac < bc) return  1;
-        if (ac > bc) return -1;
-    }
-
-    return  0;
-}
-
-int compare_count_ascend_OIV_UIV_descend(const void* a, const void* b) {
-
-    int count = compare_count_ascend(a, b);
-    int OIV   = compare_OIV_descend( a, b);
-    int UIV   = compare_UIV_descend( a, b);
-
-    if (count != 0) return count;
-    if (OIV   != 0) return OIV;
-    return UIV;
+    printf("Total Different UIV: %llu\n\n", total_count);
 }
 
 
@@ -898,7 +1041,6 @@ u64 for_sets_append_tertian_form_chord(StringBuilder* builder, Array(SetInfo) se
 
 
 
-
 /* ==== Main ==== */
 
 int main() {
@@ -920,14 +1062,48 @@ int main() {
     {
         fill_interval_vectors(all_sets);
         
+        Array(SetInfo) sets = get_pure_tertian_sets(all_sets);
+        sort(sets, compare_UIV_OIV_descend);
+        print_set_info(sets, INFO_IV_ORDERED | INFO_IV_UNORDERED | INFO_MANY_LINE);
+        print_UIV_count_table(sets);
+        print_OIV_count_table(sets);
+
+        /*/
+        sort(all_sets, compare_UIV_OIV_descend);
+        print_set_info(all_sets, INFO_IV_ORDERED | INFO_IV_UNORDERED | INFO_MANY_LINE);
+        print_UIV_count_table(all_sets);
+        print_OIV_count_table(all_sets);
+        /*/
+        
+        /*        
+        // example of printing IVs of a set
+        int set[] = {0, 2, 4, 6, 7, 9, 11};
+        print_OIV(make_set(set));        
+        print_UIV(make_set(set));        
+
+
+        // example of getting sets by UIV and save them
         int uiv[6] = {3, 4, 4, 5, 3, 2};
         Array(SetInfo) sets = get_sets_by_UIV(all_sets, uiv);
-        
-        qsort(sets.data, sets.count, sizeof(SetInfo), compare_OIV_descend);
+        sort(sets, compare_OIV_descend);
         print_set_info(sets, INFO_IV_ORDERED | INFO_IV_UNORDERED | INFO_MANY_LINE);
         save_midi_for_sets(sets, for_sets_append_arp, "uiv_test.mid");
+        */        
     }
 
+    /* ---- Tertian Form ---- */
+    {
+        /*
+        // example of getting all the pure tertian sets and save them
+        Array(SetInfo) pts = get_pure_tertian_sets(all_sets);
+        printf("\nPure Tertian Sets\n");
+        print_set_info(pts, INFO_TERTIAN);
+        
+        save_midi_for_sets(pts, for_sets_append_arp, "pts.mid");
+        save_midi_for_sets(pts, for_sets_append_tertian_form_chord, "pts_tertian.mid");
+        */
+    }
+ 
     /* ---- Polarity Value ---- */
     {
         /*
@@ -939,31 +1115,19 @@ int main() {
         Array(SetInfo) sets = get_sets_by_PV(get_sets_by_size(all_sets, 7), 0);
         print_set_info(sets, 0);
         
-        qsort(all_sets.data, all_sets.count, sizeof(SetInfo), compare_count_ascend_then_value_descend);
+        sort(all_sets, compare_count_ascend_then_value_descend);
         //print_set_info(all_sets, INFO_POLARITY);
         
         printf("\nPolarity Value Count Table\n");
         print_PV_count_table(all_sets, weighting); // todo: potential bug here for using other weighting
         
+
         // example of printing one set
         int set[] = {0, 2, 4, 6, 9};
         print_PV_from_weighting(make_set(set), weighting);
         */
     }
-
-    /* ---- Tertian Form ---- */
-    {
-        /*/
-        Array(SetInfo) pts = get_pure_tertian_sets(all_sets);
-        printf("\nPure Tertian Sets\n");
-        print_set_info(pts, INFO_TERTIAN);
-        
-        save_midi_for_sets(pts, for_sets_append_arp, "pts.mid");
-        save_midi_for_sets(pts, for_sets_append_tertian_form_chord, "pts_tertian.mid");
-        /*/
-    }
-    
+   
     //print_set_info(all_sets, INFO_ALL);
 }
-
 
