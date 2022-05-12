@@ -262,11 +262,6 @@ Array(String) string_split(String s, String separator) {
         count++;
     }
 
-    if (count == 1) {
-        String ss[1] = {s};
-        return array(String, ss);
-    }
-
     out.data  = runtime.alloc(sizeof(String) * count);
     out.count = count;
 
