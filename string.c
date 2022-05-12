@@ -167,7 +167,7 @@ void builder_free(StringBuilder* b) {
     free(b->base.data);
 }
 
-void builder_append(StringBuilder* b, String s) {
+u64 builder_append(StringBuilder* b, String s) {
     
     u64 wanted = b->base.count + s.count;
     while (wanted > b->allocated) {
@@ -177,6 +177,8 @@ void builder_append(StringBuilder* b, String s) {
 
     for (u64 i = 0; i < s.count; i++)  b->base.data[b->base.count + i] = s.data[i];
     b->base.count = wanted;
+
+    return s.count;
 }
 
 
