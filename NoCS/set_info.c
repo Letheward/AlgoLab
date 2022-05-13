@@ -450,6 +450,7 @@ Array(SetInfo) get_sets_by_size(Array(SetInfo) sets, int size) {
         if (sets.data[i].count == size) count++;
     }
     
+    if (count == 0) return (Array(SetInfo)) {0};
     Array(SetInfo) out = {temp_alloc(count * sizeof(SetInfo)), count};
     
     u64 acc = 0;
@@ -470,6 +471,7 @@ Array(SetInfo) get_sets_by_PV(Array(SetInfo) sets, int value) {
         if (sets.data[i].polarity_value == value) count++;
     }
     
+    if (count == 0) return (Array(SetInfo)) {0};
     Array(SetInfo) out = {temp_alloc(count * sizeof(SetInfo)), count};
     
     u64 acc = 0;
@@ -483,6 +485,68 @@ Array(SetInfo) get_sets_by_PV(Array(SetInfo) sets, int value) {
     return out;
 }
 
+// todo: cleanup
+Array(SetInfo) get_sparse_sets(Array(SetInfo) sets) {
+
+    u64 count = 0;
+    for (u64 i = 0; i < sets.count; i++) {
+        SetInfo* set = &sets.data[i];
+        
+        u64 c = set->count;
+        if (c < 2) {
+            count++;
+            goto next1;
+        }
+
+        int d0 = set->data[    1] - set->data[0];
+        int d1 = set->data[c - 1] - set->data[c - 2];
+        int d2 = 12 - (set->data[c - 1] - set->data[0]);
+        
+        if ((d0 < 2 && d2 < 2) + (d1 < 2 && d2 < 2)) goto next1;
+
+        for (int j = 0; j < c - 2; j++) {
+            int d1 = set->data[j + 1] - set->data[j    ];
+            int d2 = set->data[j + 2] - set->data[j + 1];
+            if (d1 < 2 && d2 < 2) goto next1;
+        }
+    
+        count++;
+        next1: continue;
+    }
+    
+    if (count == 0) return (Array(SetInfo)) {0};
+    Array(SetInfo) out = {temp_alloc(count * sizeof(SetInfo)), count};
+    
+    u64 acc = 0;
+    for (u64 i = 0; i < sets.count; i++) {
+        SetInfo* set = &sets.data[i];
+        
+        u64 c = set->count;
+        if (c < 2) {
+            out.data[acc] = *set;
+            acc++;
+            goto next2;
+        }
+
+        int d0 = set->data[    1] - set->data[0];
+        int d1 = set->data[c - 1] - set->data[c - 2];
+        int d2 = 12 - (set->data[c - 1] - set->data[0]);
+        
+        if ((d0 < 2 && d2 < 2) + (d1 < 2 && d2 < 2)) goto next2;
+
+        for (int j = 0; j < c - 2; j++) {
+            int d1 = set->data[j + 1] - set->data[j    ];
+            int d2 = set->data[j + 2] - set->data[j + 1];
+            if (d1 < 2 && d2 < 2) goto next2;
+        }
+    
+        out.data[acc] = *set;
+        acc++;
+        next2: continue;
+    }
+
+    return out;
+}
 
 // todo: handle non-generated sets, cleanup and refactor
 Array(SetInfo) get_pure_tertian_sets(Array(SetInfo) sets) {
@@ -537,6 +601,7 @@ Array(SetInfo) get_sets_by_OIV(Array(SetInfo) sets, s32* iv) {
         next1: continue;
     }
     
+    if (count == 0) return (Array(SetInfo)) {0};
     Array(SetInfo) out = {temp_alloc(count * sizeof(SetInfo)), count};
     
     u64 acc = 0;
@@ -567,6 +632,7 @@ Array(SetInfo) get_sets_by_UIV(Array(SetInfo) sets, s32* iv) {
         next1: continue;
     }
     
+    if (count == 0) return (Array(SetInfo)) {0};
     Array(SetInfo) out = {temp_alloc(count * sizeof(SetInfo)), count};
     
     u64 acc = 0;
@@ -601,10 +667,11 @@ void print_set(Set set) {
 // the info chosen in print_set_info()'s options need to be initialized
 typedef enum {
     INFO_MANY_LINE    = 0x01,
-    INFO_POLARITY     = 0x02,
-    INFO_IV_ORDERED   = 0x04,
-    INFO_IV_UNORDERED = 0x08,
-    INFO_TERTIAN      = 0x10,
+    INFO_COUNT        = 0x02,
+    INFO_POLARITY     = 0x04,
+    INFO_TERTIAN      = 0x08,
+    INFO_IV_ORDERED   = 0x10,
+    INFO_IV_UNORDERED = 0x20,
     INFO_ALL          = 0xffff, // may change
 } Print_Set_Info_Options;
 
@@ -662,6 +729,8 @@ void print_set_info(Array(SetInfo) sets, Print_Set_Info_Options options) {
        
         printf("\n");
     }
+
+    if (options & INFO_COUNT) printf("Total Count: %llu\n\n", sets.count);
 }
 
 
@@ -1084,16 +1153,20 @@ int main() {
     {
         fill_interval_vectors(all_sets);
 
+        /*/
         for (u64 i = 0; i < all_sets.count; i++) {
             translate_OIV_index_order_to_IC7_order(all_sets.data[i].interval_vector_ordered);
         }
+        /*/
         
-        Array(SetInfo) sets = get_sets_by_size(all_sets, 7);
+        
+        /*/
+        Array(SetInfo) sets = get_sparse_sets(get_sets_by_size(all_sets, 7));
         sort(sets, compare_UIV_OIV_descend);
-        print_set_info(sets, INFO_IV_ORDERED | INFO_IV_UNORDERED | INFO_MANY_LINE);
-        print_OIV_count_table(sets);
-        print_UIV_count_table(sets);
-        
+        print_set_info(sets, INFO_IV_ORDERED | INFO_IV_UNORDERED | INFO_MANY_LINE | INFO_COUNT);
+        print_set_info(get_pure_tertian_sets(all_sets), INFO_IV_ORDERED | INFO_IV_UNORDERED | INFO_MANY_LINE | INFO_COUNT);
+        /*/
+       
         /*/
         Array(SetInfo) sets = get_pure_tertian_sets(all_sets);
         sort(sets, compare_UIV_OIV_descend);
@@ -1125,8 +1198,13 @@ int main() {
         */        
     }
 
-    /* ---- Tertian Form ---- */
+    /* ---- Sparse Set and PTS ---- */
     {
+
+        Array(SetInfo) sps = get_sparse_sets(all_sets);
+        print_set_info(sps, INFO_IV_ORDERED | INFO_IV_UNORDERED | INFO_MANY_LINE | INFO_COUNT);
+        save_midi_for_sets(sps, for_sets_append_arp, "sps.mid");
+
         /*
         // example of getting all the pure tertian sets and save them
         Array(SetInfo) pts = get_pure_tertian_sets(all_sets);
