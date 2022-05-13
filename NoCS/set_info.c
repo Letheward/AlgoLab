@@ -989,6 +989,13 @@ String get_note_length(int tick, int numer, int denom) {
 }
 
 
+/* 
+    
+    Note: now SetInfo use s32 as data values, so if there are out of bound values, 
+    these append functions will overflow (although all the data now are in range)
+
+*/
+
 u64 append_note(StringBuilder* builder, u8 note) {
     u64 count = 0;
     u8  on_off[] = {0x00,  0x90, note, 0x66,   0x83, 0x60,   0x80, note, 0x66};
