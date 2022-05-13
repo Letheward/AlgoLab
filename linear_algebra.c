@@ -73,11 +73,13 @@ f32 v3_dot(Vector3 a, Vector3 b) {
 }
 
 f32 v3_length(Vector3 v) {
-    return sqrtf(v3_dot(v, v));
+    return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
 }
 
+// will not check divide by zero
 Vector3 v3_normalize(Vector3 v) {
-    return v3_scale(v, 1 / v3_length(v));
+    f32 s = 1 / sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+    return (Vector3) {v.x * s, v.y * s, v.z * s};
 }
 
 
@@ -96,8 +98,8 @@ Matrix2 m2_scale(Vector2 v) {
 }
 
 Matrix2 m2_rotate(f32 rad) {
-    f32 c = cos(rad);
-    f32 s = sin(rad);
+    f32 c = cosf(rad);
+    f32 s = sinf(rad);
     return (Matrix2) {
         { c,  s},
         {-s,  c}
@@ -107,17 +109,17 @@ Matrix2 m2_rotate(f32 rad) {
 // note: right to left like in math, M N means first do N then M 
 //       looks backward because store in column major order
 Matrix2 m2_mul(Matrix2 M, Matrix2 N) {
-    f32 temp[2][2] = {0};
+    f32 out[2][2] = {0};
     f32* m = (f32*) &M;
     f32* n = (f32*) &N;
     for (int i = 0; i < 2; i++) {
         for (int k = 0; k < 2; k++) {
             for (int j = 0; j < 2; j++) {
-                temp[i][j] += m[k * 2 + j] * n[i * 2 + k];
+                out[i][j] += m[k * 2 + j] * n[i * 2 + k];
             }
         }
     }
-    return *((Matrix2*) temp);
+    return *((Matrix2*) out);
 }
 
 Matrix4 m4_identity() {
@@ -150,19 +152,18 @@ Matrix4 m4_translate(Vector3 v) {
 // note: right to left like in math, M N means first do N then M 
 //       looks backward because store in column major order
 Matrix4 m4_mul(Matrix4 M, Matrix4 N) {
-    f32 temp[4][4] = {0};
+    f32 out[4][4] = {0};
     f32* m = (f32*) &M;
     f32* n = (f32*) &N;
     for (int i = 0; i < 4; i++) {
         for (int k = 0; k < 4; k++) {
             for (int j = 0; j < 4; j++) {
-                temp[i][j] += m[k * 4 + j] * n[i * 4 + k];
+                out[i][j] += m[k * 4 + j] * n[i * 4 + k];
             }
         }
     }
-    return *((Matrix4*) temp);
+    return *((Matrix4*) out);
 }
-
 
 Matrix4 m4_perspective(f32 FOV, f32 aspect, f32 n, f32 f) {
     const f32 a = 1.0 / tan(FOV / 2.0);
@@ -200,18 +201,20 @@ Rotor3D b3_to_r3d(f32 s, BiVector3 b) {
     return (Rotor3D) {s, b.yz, b.zx, b.xy};
 }
 
+// will not check divide by zero
 BiVector3 b3_normalize(BiVector3 b) {
-    f32 l = sqrtf(b.yz * b.yz + b.zx * b.zx + b.xy * b.xy);
-    return (BiVector3) {b.yz / l, b.zx / l, b.xy / l}; // divide by zero?
-}
-
-Rotor3D r3d_normalize(Rotor3D r) {
-    f32 l = sqrtf(r.s * r.s + r.yz * r.yz + r.zx * r.zx + r.xy * r.xy);
-    return (Rotor3D) {r.s / l, r.yz / l, r.zx / l, r.xy / l}; // divide by zero?
+    f32 s = 1 / sqrtf(b.yz * b.yz + b.zx * b.zx + b.xy * b.xy); 
+    return (BiVector3) {b.yz * s, b.zx * s, b.xy * s};
 }
 
 Rotor3D r3d_reverse(Rotor3D r) {
     return (Rotor3D) {r.s, -r.yz, -r.zx, -r.xy};
+}
+
+// will not check divide by zero
+Rotor3D r3d_normalize(Rotor3D r) {
+    f32 s = 1 / sqrtf(r.s * r.s + r.yz * r.yz + r.zx * r.zx + r.xy * r.xy);
+    return (Rotor3D) {r.s * s, r.yz * s, r.zx * s, r.xy * s}; 
 }
 
 // normalize before using this
@@ -223,8 +226,8 @@ Rotor3D r3d_from_v3(Vector3 a, Vector3 b) {
 
 // normalize before using this
 Rotor3D r3d_from_plane_angle(BiVector3 plane, f32 rad) {
-    f32 s = sin(rad / 2);
-    f32 c = cos(rad / 2);
+    f32 s = sinf(rad / 2);
+    f32 c = cosf(rad / 2);
     return (Rotor3D) {c, s * plane.yz, s * plane.zx, s * plane.xy};
 }
 
@@ -241,7 +244,7 @@ Rotor3D r3d_mul(Rotor3D a, Rotor3D b) {
 // R* V R
 Vector3 v3_rotate(Vector3 v, Rotor3D r) {
 
-    // temp result, a vector and a trivector
+    // out result, a vector and a trivector
     f32 x   =  v.x * r.s  - v.y * r.xy + v.z * r.zx;
     f32 y   =  v.y * r.s  - v.z * r.yz + v.x * r.xy;
     f32 z   =  v.z * r.s  - v.x * r.zx + v.y * r.yz;
@@ -256,10 +259,7 @@ Vector3 v3_rotate(Vector3 v, Rotor3D r) {
 }
 
 
-
-
 /*
-
 // inline all the v3_rotate(), cancel the 0 terms and merge, we get the functions below
 Matrix4 r3d_to_m4(Rotor3D r) {
     Vector3 v0 = v3_rotate((Vector3) {1, 0, 0}, r);
@@ -272,7 +272,6 @@ Matrix4 r3d_to_m4(Rotor3D r) {
         {    0,     0,     0, 1},
     };
 }
-
 */
 
 Matrix3 r3d_to_m3(Rotor3D r) {
@@ -344,7 +343,6 @@ Vector4 lerp_v4(Vector4 a, Vector4 b, f32 t) {
 }
 
 
-// todo: is this right?
 Rotor3D nlerp_r3d(Rotor3D a, Rotor3D b, f32 t) {
     
     Rotor3D out = {
@@ -381,6 +379,26 @@ Rotor3D slerp_r3d(Rotor3D a, Rotor3D b, f32 t) {
 
 /* ==== Utility ==== */
 
+void print_v2(Vector2 v) {
+    printf("%12f %12f\n", v.x, v.y);
+}
+
+void print_v3(Vector3 v) {
+    printf("%12f %12f %12f\n", v.x, v.y, v.z);
+}
+
+void print_v4(Vector4 v) {
+    printf("%12f %12f %12f %12f\n", v.x, v.y, v.z, v.w);
+}
+
+void print_b3(BiVector3 b) {
+    printf("%12f %12f %12f\n", b.yz, b.zx, b.xy);
+}
+
+void print_r3d(Rotor3D r) {
+    printf("%12f %12f %12f %12f\n", r.s, r.yz, r.zx, r.xy);
+}
+
 void print_m2(Matrix2 M) {
     for (int i = 0; i < 2 * 2; i++) {
         if (i > 0 && i % 2 == 0) printf("\n");
@@ -405,22 +423,3 @@ void print_m4(Matrix4 M) {
     printf("\n\n");
 }
 
-void print_v2(Vector2 v) {
-    printf("%12f %12f\n", v.x, v.y);
-}
-
-void print_v3(Vector3 v) {
-    printf("%12f %12f %12f\n", v.x, v.y, v.z);
-}
-
-void print_v4(Vector4 v) {
-    printf("%12f %12f %12f %12f\n", v.x, v.y, v.z, v.w);
-}
-
-void print_b3(BiVector3 b) {
-    printf("%12f %12f %12f\n", b.yz, b.zx, b.xy);
-}
-
-void print_r3d(Rotor3D r) {
-    printf("%12f %12f %12f %12f\n", r.s, r.yz, r.zx, r.xy);
-}
