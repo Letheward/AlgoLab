@@ -244,7 +244,7 @@ Define_Array(SetInfo);
 //  0 6   7 2 9 4 11   5 10 3 8  1
 //  to
 //  0 1   2 3 4 5 6    7 8  9 10 11
-void translate_IC7_order_to_index_order(int* weighting) {
+void translate_weighting_IC7_order_to_index_order(int* weighting) {
 
     int copy[12];
     for (int i = 0; i < 12; i++) copy[i] = weighting[i];
@@ -262,6 +262,28 @@ void translate_IC7_order_to_index_order(int* weighting) {
     weighting[8 ]  = copy[10];
     weighting[1 ]  = copy[11];
 }
+
+//  1 2 3 4  5  6  7 8  9 10 11
+//  to
+//  7 2 9 4 11  6  5 10 3 8  1
+void translate_OIV_index_order_to_IC7_order(int* in) {
+
+    int copy[11];
+    for (int i = 0; i < 11; i++) copy[i] = in[i];
+    
+    in[0]  = copy[6];
+    in[1]  = copy[1];
+    in[2]  = copy[8];
+    in[3]  = copy[3];
+    in[4]  = copy[10];
+    in[5]  = copy[5];
+    in[6]  = copy[4];
+    in[7]  = copy[9];
+    in[8]  = copy[2];
+    in[9]  = copy[7];
+    in[10] = copy[0];
+}
+
 
 int compare_value_descend(const void* a, const void* b) {
     SetInfo* sa = (SetInfo*) a;
@@ -1061,12 +1083,24 @@ int main() {
     /* ---- Interval Vector ---- */
     {
         fill_interval_vectors(all_sets);
+
+        for (u64 i = 0; i < all_sets.count; i++) {
+            translate_OIV_index_order_to_IC7_order(all_sets.data[i].interval_vector_ordered);
+        }
         
+        Array(SetInfo) sets = get_sets_by_size(all_sets, 7);
+        sort(sets, compare_UIV_OIV_descend);
+        print_set_info(sets, INFO_IV_ORDERED | INFO_IV_UNORDERED | INFO_MANY_LINE);
+        print_OIV_count_table(sets);
+        print_UIV_count_table(sets);
+        
+        /*/
         Array(SetInfo) sets = get_pure_tertian_sets(all_sets);
         sort(sets, compare_UIV_OIV_descend);
         print_set_info(sets, INFO_IV_ORDERED | INFO_IV_UNORDERED | INFO_MANY_LINE);
         print_UIV_count_table(sets);
         print_OIV_count_table(sets);
+        /*/
 
         /*/
         sort(all_sets, compare_UIV_OIV_descend);
@@ -1109,7 +1143,7 @@ int main() {
         /*
         int weighting[12] = {0, 0, 5, 4, 3, 2, 1, -5, -4, -3, -2, -1};
         //int weighting[12] = {0, 0, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1};
-        translate_IC7_order_to_index_order(weighting);
+        translate_weighting_IC7_order_to_index_order(weighting);
         fill_polarity_values(all_sets, weighting);
         
         Array(SetInfo) sets = get_sets_by_PV(get_sets_by_size(all_sets, 7), 0);
