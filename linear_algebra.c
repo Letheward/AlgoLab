@@ -33,7 +33,7 @@ in projection matrix functions and use gl_Position directly.
 */
 
 
-/* ==== Data Structures ==== */
+/* ==== Data Types ==== */
 
 typedef struct {f32 x, y      ;} Vector2;
 typedef struct {f32 x, y, z   ;} Vector3;
@@ -45,6 +45,39 @@ typedef struct {Vector4 v0, v1, v2, v3;} Matrix4;
 
 typedef struct {f32    yz, zx, xy;} BiVector3;
 typedef struct {f32 s, yz, zx, xy;} Rotor3D;
+
+
+
+
+/* ==== Constants ==== */
+
+const Vector3   V3_X  = {1, 0, 0};
+const Vector3   V3_Y  = {0, 1, 0};
+const Vector3   V3_Z  = {0, 0, 1};
+
+const BiVector3 B3_YZ = {1, 0, 0};
+const BiVector3 B3_ZX = {0, 1, 0};
+const BiVector3 B3_XY = {0, 0, 1};
+
+const Rotor3D R3D_DEFAULT = {1, 0, 0, 0};
+
+const Matrix2 M2_IDENTITY = {
+    {1, 0},
+    {0, 1},
+};
+
+const Matrix3 M3_IDENTITY = {
+    {1, 0, 0},
+    {0, 1, 0},
+    {0, 0, 1},
+};
+
+const Matrix4 M4_IDENTITY = {
+    {1, 0, 0, 0},
+    {0, 1, 0, 0},
+    {0, 0, 1, 0},
+    {0, 0, 0, 1},
+};
 
 
 
@@ -83,13 +116,6 @@ Vector3 v3_normalize(Vector3 v) {
 }
 
 
-Matrix2 m2_identity() {
-    return (Matrix2) {
-        {1, 0},
-        {0, 1},
-    };
-}
-
 Matrix2 m2_scale(Vector2 v) {
     return (Matrix2) {
         {v.x,   0},
@@ -120,15 +146,6 @@ Matrix2 m2_mul(Matrix2 M, Matrix2 N) {
         }
     }
     return *((Matrix2*) out);
-}
-
-Matrix4 m4_identity() {
-    return (Matrix4) {
-        {1, 0, 0, 0},
-        {0, 1, 0, 0},
-        {0, 0, 1, 0},
-        {0, 0, 0, 1}
-    };
 }
 
 Matrix4 m4_scale(Vector3 v) {
@@ -219,9 +236,9 @@ Rotor3D r3d_normalize(Rotor3D r) {
 
 // normalize before using this
 Rotor3D r3d_from_v3(Vector3 a, Vector3 b) {
-    f32       d  = v3_dot(  a, b); // half angle trick
+    f32       d  = v3_dot(  a, b); 
     BiVector3 bv = v3_wedge(a, b);
-    return r3d_normalize((Rotor3D) {1 + d, bv.yz, bv.zx, bv.xy}); 
+    return r3d_normalize((Rotor3D) {1 + d, bv.yz, bv.zx, bv.xy}); // half angle trick
 }
 
 // normalize before using this
