@@ -306,10 +306,12 @@ Matrix3 r3d_to_m3(Rotor3D r) {
     f32 yz_xy = r.yz * r.xy;
     f32 zx_xy = r.zx * r.xy;
 
+    f32 sum   = s_s - yz_yz - zx_zx - xy_xy;
+    
     return (Matrix3) {
-        { s_s + yz_yz - zx_zx  - xy_xy ,           2 * ( s_xy + yz_zx),          2 * (yz_xy - s_zx )},
-        {           2 * (yz_zx - s_xy ), s_s - yz_yz +  zx_zx - xy_xy ,          2 * ( s_yz + zx_xy)},
-        {           2 * (s_zx  + yz_xy),           2 * (zx_xy - s_yz ), s_s - yz_yz - zx_zx + xy_xy },
+        { 2 * yz_yz  + sum   , 2 * ( s_xy + yz_zx), 2 * (yz_xy - s_zx )},
+        { 2 * (yz_zx - s_xy ), 2 * zx_zx  + sum   , 2 * ( s_yz + zx_xy)},
+        { 2 * (s_zx  + yz_xy), 2 * (zx_xy - s_yz ), 2 * xy_xy  + sum   },
     };
 }
 
@@ -327,12 +329,14 @@ Matrix4 r3d_to_m4(Rotor3D r) {
     f32 yz_zx = r.yz * r.zx;
     f32 yz_xy = r.yz * r.xy;
     f32 zx_xy = r.zx * r.xy;
+    
+    f32 sum   = s_s - yz_yz - zx_zx - xy_xy;
 
     return (Matrix4) {
-        { s_s + yz_yz - zx_zx  - xy_xy ,           2 * ( s_xy + yz_zx),          2 * (yz_xy - s_zx ), 0},
-        {           2 * (yz_zx - s_xy ), s_s - yz_yz +  zx_zx - xy_xy ,          2 * ( s_yz + zx_xy), 0},
-        {           2 * (s_zx  + yz_xy),           2 * (zx_xy - s_yz ), s_s - yz_yz - zx_zx + xy_xy , 0},
-        {                             0,                             0,                            0, 1},
+        { 2 * yz_yz  + sum   , 2 * ( s_xy + yz_zx), 2 * (yz_xy - s_zx ), 0},
+        { 2 * (yz_zx - s_xy ), 2 * zx_zx  + sum   , 2 * ( s_yz + zx_xy), 0},
+        { 2 * (s_zx  + yz_xy), 2 * (zx_xy - s_yz ), 2 * xy_xy  + sum   , 0},
+        {                   0,                   0,                   0, 1},
     };
 }
 
