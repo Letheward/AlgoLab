@@ -71,7 +71,6 @@ char* source_files[] = {
     "pass_by_value.c",
     "print_data.c",
     "probability.c",
-    "string.c",
     "macro.c",
     "allocator.c",
     "sort.c",
@@ -80,6 +79,7 @@ char* source_files[] = {
     "gibberish_code_generator.c",
     "simd.c",
     "combinatorics.c",
+    // "string.c", // need input
     // "word.c", // too slow on some terminals (looking at you, Microsoft!)
 };
 

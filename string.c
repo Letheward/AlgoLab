@@ -8,6 +8,24 @@
 
 
 
+/* ==== Macros ==== */
+
+#define string(s)            (String) {(u8*) s, sizeof(s) - 1}
+#define array_string(s)      (String) {(u8*) s, sizeof(s)}
+#define data_string(s)       (String) {(u8*) &s, sizeof(s)}
+#define length_of(array)     (sizeof(array) / sizeof(array[0]))
+#define array(Type, c_array) (Array(Type)) {c_array, length_of(c_array)}
+
+#define Array(Type) Array_ ## Type
+#define Define_Array(Type) \
+typedef struct {           \
+    Type* data;            \
+    u64   count;           \
+} Array(Type)              \
+
+
+
+
 /* ==== Types ==== */
 
 typedef unsigned char           u8;
@@ -31,25 +49,45 @@ typedef struct {
     u64    allocated;
 } StringBuilder;
 
-
-
-
-/* ==== Macros ==== */
-
-#define string(s)            (String) {(u8*) s, sizeof(s) - 1}
-#define length_of(array)     (sizeof(array) / sizeof(array[0]))
-#define array(Type, c_array) (Array(Type)) {c_array, length_of(c_array)}
-
-#define Array(Type) Array_ ## Type
-#define Define_Array(Type) \
-typedef struct {           \
-    Type* data;            \
-    u64   count;           \
-} Array(Type)              \
-
 Define_Array(String);
 
 
+
+
+
+/* ==== Utils ==== */
+
+void error(char* s, ...) {
+
+    va_list va;
+    va_start(va, s);
+
+    printf("[Error] ");
+    vprintf(s, va);
+
+    exit(1); 
+}
+
+/* ---- Timer ---- */
+
+typedef struct {
+    struct timespec start;
+    struct timespec end;
+    u8 which;
+} PerformanceTimer;
+
+PerformanceTimer timer;
+
+void time_it() {
+    if (timer.which == 0) {
+        clock_gettime(CLOCK_MONOTONIC, &timer.start);
+        timer.which = 1;
+    } else {
+        clock_gettime(CLOCK_MONOTONIC, &timer.end);
+        printf("%fs\n", (timer.end.tv_sec - timer.start.tv_sec) + 1e-9 * (timer.end.tv_nsec - timer.start.tv_nsec));
+        timer.which = 0;
+    }
+}
 
 
 
@@ -65,9 +103,17 @@ typedef struct {
 } ArenaBuffer;
 
 struct {
+   
     ArenaBuffer   temp_buffer;
+    
+    struct {
+        char* data;
+        u64   count;
+    } input_buffer;
+
     void*         (*alloc)(u64);
     Array(String) command_line_args;
+
 } runtime;
 
 void* temp_alloc(u64 count) {
@@ -108,44 +154,6 @@ void temp_info() {
 }
 
 
-
-
-/* ==== Utils ==== */
-
-void error(char* s, ...) {
-
-    va_list va;
-    va_start(va, s);
-
-    printf("[Error] ");
-    vprintf(s, va);
-
-    exit(1); 
-}
-
-
-
-
-/* ==== Timer ==== */
-
-typedef struct {
-    struct timespec start;
-    struct timespec end;
-    u8 which;
-} PerformanceTimer;
-
-PerformanceTimer timer;
-
-void time_it() {
-    if (timer.which == 0) {
-        clock_gettime(CLOCK_MONOTONIC, &timer.start);
-        timer.which = 1;
-    } else {
-        clock_gettime(CLOCK_MONOTONIC, &timer.end);
-        printf("%fs\n", (timer.end.tv_sec - timer.start.tv_sec) + 1e-9 * (timer.end.tv_nsec - timer.start.tv_nsec));
-        timer.which = 0;
-    }
-}
 
 
 
@@ -206,10 +214,10 @@ u8 string_equal(String a, String b) {
     return 1;
 }
 
-// dumb linear search for now
+// dumb linear search, but may be faster for small inputs
 String string_find(String a, String b) {
     
-    if (!a.count || !b.count) return (String) {0};
+    if (!a.count || !b.count || !a.data || !b.data) return (String) {0};
     
     for (u64 i = 0; i < a.count; i++) {
         if (a.data[i] == b.data[0]) {
@@ -431,6 +439,12 @@ String base64_encode(String in) {
     return (String) {data, count};
 }
 
+
+
+
+
+/* ==== Standard IO ==== */
+
 // basic print
 void print_string(String s) {
     for (int i = 0; i < s.count; i++) putchar(s.data[i]);
@@ -459,6 +473,20 @@ void print(String s, ...) {
     }
 
     va_end(args);
+}
+
+// does not give a copy
+String read_line() {
+    
+    char* buffer = runtime.input_buffer.data;
+    u64   count  = runtime.input_buffer.count;
+
+    fgets(buffer, count, stdin);
+    String s = {(u8*) buffer, strlen(buffer)};
+    
+    if (s.data[s.count - 1] == '\n') s.count -= 1;
+    
+    return s;
 }
 
 
@@ -511,19 +539,20 @@ int main(int arg_count, char** args) {
     runtime.temp_buffer.data = calloc(size, sizeof(u8));
     runtime.temp_buffer.size = size;
     runtime.alloc = malloc;
-    
+
+    runtime.input_buffer.data  = calloc(2048, sizeof(u8));
+    runtime.input_buffer.count = 2048;
+
     runtime.command_line_args = (Array(String)) {
         .data  = malloc(sizeof(String) * arg_count),
         .count = arg_count,
     };
 
     for (int i = 0; i < arg_count; i++) {
-        int len = strlen(args[i]);
-        String* s = &runtime.command_line_args.data[i];
-        s->data  = malloc(len);       
-        s->count = len;
-        memcpy(s->data, args[i], len);
+        runtime.command_line_args.data[i] = (String) {(u8*) args[i], strlen(args[i])};
     }
+    
+    setvbuf(stdout, NULL, _IONBF, 0); // force some shell to print immediately (so stdout before input will not be hidden) 
 
     program();
 }
@@ -536,17 +565,24 @@ int main(int arg_count, char** args) {
 void program() {
 
 
-    /* ---- Commandline Arguments ---- */
+    /* ---- Input ---- */
     
     // if you want then get it, no need to write a different main() and worry about namespace pollution
     Array(String) args = runtime.command_line_args; 
-    String password = args.count > 1 ? args.data[1] : string("purr purr");
+    
+    String password;
+    if (args.count > 1) {
+        password = args.data[1];
+    } else {
+        print(string("Please input password:\n"));
+        password = read_line();
+    }
 
 
     /* ---- String Builder ---- */
     StringBuilder builder = builder_init();
 
-    builder_append(&builder, string("Password Detected: "));
+    builder_append(&builder, string("Get password: "));
     builder_append(&builder, password);
     builder_append(&builder, string("\n"));
 
@@ -555,7 +591,7 @@ void program() {
     builder_free(&builder);
 
 
-    /* ---- IO, String, Temp Allocator ---- */
+    /* ---- File IO, Print, Temp Allocator ---- */
     runtime.alloc = temp_alloc;
     
     String s = string_replace(string("This is a string.\n"), string("string"), string("cat"));
@@ -568,9 +604,10 @@ void program() {
         base64_encode(password)
     );
 
-    String code = base64_encode(load_file("string.c")); // no leak here, because of allocator
-    print(string("\nCode of this:\n@\n"), code); 
-    
+    String code = load_file(__FILE__); 
+    print(string("\nCode of this:\n@\n"), base64_encode(code)); // no leak here, because of temp allocator
+
+
     temp_reset();
     temp_info();
 
