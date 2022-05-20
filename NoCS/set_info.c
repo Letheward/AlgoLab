@@ -226,6 +226,8 @@ typedef struct {
     s32 data[12]; 
     s32 count;
 
+    u32 index; // index from binary generation method
+
     /* ---- Metrics ---- */
     s32 polarity_value;                // overwritable by different weighting
     s32 interval_vector_ordered[11];
@@ -284,6 +286,13 @@ void translate_OIV_index_order_to_IC7_order(int* in) {
     in[10] = copy[0];
 }
 
+int compare_index_ascend(const void* a, const void* b) {
+    SetInfo* sa = (SetInfo*) a;
+    SetInfo* sb = (SetInfo*) b;
+    if (sa->index > sb->index) return  1;
+    if (sa->index < sb->index) return -1;
+    return  0;
+}
 
 int compare_value_descend(const void* a, const void* b) {
     SetInfo* sa = (SetInfo*) a;
@@ -400,8 +409,10 @@ Array(SetInfo) get_all_set_info() {
                 c++;
             }
         }
-        p->count = c;
 
+        p->count = c;
+        p->index = binary;
+        
         binary++;
     }
     
@@ -686,7 +697,9 @@ void print_set_info(Array(SetInfo) sets, Print_Set_Info_Options options) {
         for (int j = 0; j < set->count - 1; j++) {
             printf("%d, ", set->data[j]);
         }
-        printf("%d}", set->data[set->count - 1]);
+        printf("%d} ", set->data[set->count - 1]);
+        
+        printf("Index %u ", set->index);
         
         if (options & INFO_MANY_LINE) printf("\n");
 
@@ -1167,11 +1180,14 @@ int main() {
         /*/
         
         
-        /*/
         Array(SetInfo) sets = get_sparse_sets(get_sets_by_size(all_sets, 7));
         sort(sets, compare_UIV_OIV_descend);
         print_set_info(sets, INFO_IV_ORDERED | INFO_IV_UNORDERED | INFO_MANY_LINE | INFO_COUNT);
-        print_set_info(get_pure_tertian_sets(all_sets), INFO_IV_ORDERED | INFO_IV_UNORDERED | INFO_MANY_LINE | INFO_COUNT);
+        sort(sets, compare_index_ascend);
+        print_set_info(sets, INFO_IV_ORDERED | INFO_IV_UNORDERED | INFO_MANY_LINE | INFO_COUNT);
+        //print_set_info(get_pure_tertian_sets(all_sets), INFO_IV_ORDERED | INFO_IV_UNORDERED | INFO_MANY_LINE | INFO_COUNT);
+        /*/
+        
         /*/
        
         /*/
@@ -1207,12 +1223,12 @@ int main() {
 
     /* ---- Sparse Set and PTS ---- */
     {
+        /*
 
         Array(SetInfo) sps = get_sparse_sets(all_sets);
         print_set_info(sps, INFO_IV_ORDERED | INFO_IV_UNORDERED | INFO_MANY_LINE | INFO_COUNT);
         save_midi_for_sets(sps, for_sets_append_arp, "sps.mid");
 
-        /*
         // example of getting all the pure tertian sets and save them
         Array(SetInfo) pts = get_pure_tertian_sets(all_sets);
         printf("\nPure Tertian Sets\n");
