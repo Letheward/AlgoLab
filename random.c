@@ -130,7 +130,7 @@ u64 whisky() {
 
 /* ==== Algorithms ==== */
 
-void print_csv(u64 (*random)(), char* name, u64 table_count, s64 iteration) {
+void print_csv(FILE* f, u64 (*random)(), char* name, u64 table_count, s64 iteration) {
     
     s64* table = calloc(table_count, sizeof(s64));
 
@@ -147,7 +147,7 @@ void print_csv(u64 (*random)(), char* name, u64 table_count, s64 iteration) {
 
     free(table);
     
-    printf("%s, %llu, %lld, %f%%, %f%%\n", name, table_count, iteration, highest * 100, acc * 100 / (f64) table_count);
+    fprintf(f, "%s, %llu, %lld, %f%%, %f%%\n", name, table_count, iteration, highest * 100, acc * 100 / (f64) table_count);
 }
 
 
@@ -155,10 +155,12 @@ void print_csv(u64 (*random)(), char* name, u64 table_count, s64 iteration) {
 int main() {
     
     srand(1);
+    
+    FILE* file = fopen("result.csv", "wb");
 
-    printf("name, table_count, iteration, highest, average\n");
+    fprintf(file, "name, table_count, iteration, highest, average\n");
 
-    #define print_csv_helper(f) print_csv(f, #f, i, j) 
+    #define print_csv_helper(f) print_csv(file, f, #f, i, j) 
     
     for (u64 i = 2; i < 32768; i++) {
         for (u64 j = 128; j < 1024 * 64; j *= 2) {
@@ -171,6 +173,8 @@ int main() {
             print_csv_helper(whisky); 
             
         }
+        
+        if (i % 10 == 0) printf("Finished %llu\n", i);
     }
 
 }
