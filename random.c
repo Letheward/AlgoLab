@@ -9,8 +9,8 @@
 
 typedef unsigned long long int u64;
 typedef unsigned int           u32;
-typedef signed   long long int s64;
-typedef signed   int           s32;
+typedef signed long long int   s64;
+typedef signed int             s32;
 
 typedef float  f32;
 typedef double f64;
@@ -19,19 +19,13 @@ typedef double f64;
 
 
 
-/* ==== Seeds ==== */
+/* ==== Integer Algorithms ==== */
 
 u64 seed_lcg           = 1;
 u64 seed_xorshift      = 1;
 u64 seed_xorshift_star = 1;
 u64 seed_wy            = 1;
 u32 seed_whisky        = 1;
-
-
-
-
-
-/* ==== Algorithms ==== */
 
 // note: this only goes up to 32768 in some libc
 u64 c_random() {  
@@ -47,11 +41,10 @@ u64 lcg() {
 	
     u64* seed = &seed_lcg;
 
-    *seed = *seed * a + c;
+    *seed = *seed * a + c; // overflow so m = 2^64
     
     return *seed;
 }
-
 
 // [xorshift](https://en.wikipedia.org/wiki/Xorshift) 
 // note: need to have a non-0 seed
@@ -128,9 +121,37 @@ u64 whisky() {
 
 
 
-/* ==== Algorithms ==== */
+/* ==== Float Algorithms ==== */
 
-void print_csv(FILE* f, u64 (*random)(), char* name, u64 table_count, s64 iteration) {
+typedef struct { u64 u, v, w; } Wichmann_Hill_State;
+
+Wichmann_Hill_State seed_wichmann_hill = {10295, 20451, 105};
+
+// note: this produced f64 from 0 to 1
+f64 wichmann_hill() {
+
+    Wichmann_Hill_State* s = &seed_wichmann_hill;
+
+    s->u = (s->u * 171) % 30269;
+    s->v = (s->v * 172) % 30307;
+    s->w = (s->w * 170) % 30323;
+
+    return fmod(s->u / 30269.0 + s->v / 30307.0 + s->w / 30323.0, 1.0);
+}
+
+
+
+
+
+
+
+
+
+
+
+/* ==== Test ==== */
+
+void print_u64_csv(FILE* f, u64 (*random)(), char* name, u64 table_count, s64 iteration) {
     
     s64* table = calloc(table_count, sizeof(s64));
 
@@ -152,15 +173,26 @@ void print_csv(FILE* f, u64 (*random)(), char* name, u64 table_count, s64 iterat
 
 
 
+
 int main() {
     
+    
+    for (int i = 0; i < 1000; i++) {
+        f64 test = wichmann_hill();
+        printf("%f\n", test);
+    }
+
+
+
+
+    
+    #ifdef u64_test      
     srand(1);
     
     FILE* file = fopen("result.csv", "wb");
-
     fprintf(file, "name, table_count, iteration, highest, average\n");
 
-    #define print_csv_helper(f) print_csv(file, f, #f, i, j) 
+    #define print_csv_helper(f) print_u64_csv(file, f, #f, i, j) 
     
     for (u64 i = 2; i < 32768; i++) {
         for (u64 j = 128; j < 1024 * 64; j *= 2) {
@@ -176,6 +208,8 @@ int main() {
         
         if (i % 10 == 0) printf("Finished %llu\n", i);
     }
+    #endif
+
 
 }
 
