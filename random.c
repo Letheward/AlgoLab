@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
 
 
 
@@ -14,6 +15,7 @@ typedef signed int             s32;
 
 typedef float  f32;
 typedef double f64;
+
 
 
 
@@ -33,7 +35,7 @@ u64 c_random() {
 }
 
 // [lcg](https://en.wikipedia.org/wiki/Linear_congruential_generator)
-// note: it will be perfect when the table size is 2^n
+// note: it will be perfect uniform when the table size at test is 2^n
 u64 lcg() {
 
     const u64 a = 6364136223846793005;
@@ -151,14 +153,20 @@ f64 wichmann_hill() {
 
 /* ==== Test ==== */
 
-void print_u64_csv(FILE* f, u64 (*random)(), char* name, u64 table_count, s64 iteration) {
+void print_u64_test_csv(FILE* f, u64 (*random)(), char* name, u64 table_count, s64 iteration) {
     
     s64* table = calloc(table_count, sizeof(s64));
 
     f64 highest = 0;
     f64 acc     = 0;
     
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+
     for (int i = 0; i < table_count * iteration; i++)  table[random() % table_count]++;
+
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    f64 time = (end.tv_sec - start.tv_sec) + 1e-9 * (end.tv_nsec - start.tv_nsec);
 
     for (int i = 0; i < table_count; i++) {
         f64 error = abs(table[i] - iteration) / (f64) iteration;
@@ -168,48 +176,47 @@ void print_u64_csv(FILE* f, u64 (*random)(), char* name, u64 table_count, s64 it
 
     free(table);
     
-    fprintf(f, "%s, %llu, %lld, %f%%, %f%%\n", name, table_count, iteration, highest * 100, acc * 100 / (f64) table_count);
+    fprintf(f, "%f%%, %f%%, %fs, ", highest * 100, acc * 100 / (f64) table_count, time);
 }
 
 
 
 
 int main() {
+
+
+    #define csv_string(f) #f " (highest error), " #f " (average error), " #f " (time), " 
+    #define print_helper(f) print_u64_test_csv(file, f, #f, i, 32768) 
+
+    FILE* file = fopen("result.csv", "wb");
     
-    
-    for (int i = 0; i < 1000; i++) {
-        f64 test = wichmann_hill();
-        printf("%f\n", test);
-    }
-
-
-
-
-    
-    #ifdef u64_test      
     srand(1);
     
-    FILE* file = fopen("result.csv", "wb");
-    fprintf(file, "name, table_count, iteration, highest, average\n");
-
-    #define print_csv_helper(f) print_u64_csv(file, f, #f, i, j) 
+    fprintf(
+        file, 
+        "table_size, "
+        csv_string(c_random)
+        csv_string(lcg)
+        csv_string(xorshift)
+        csv_string(xorshift_star)
+        csv_string(wyrand)
+        csv_string(whisky)
+        "\n"
+    );
     
     for (u64 i = 2; i < 32768; i++) {
-        for (u64 j = 128; j < 1024 * 64; j *= 2) {
-            
-            print_csv_helper(c_random); 
-            print_csv_helper(lcg); 
-            print_csv_helper(xorshift); 
-            print_csv_helper(xorshift_star); 
-            print_csv_helper(wyrand); 
-            print_csv_helper(whisky); 
-            
-        }
+        
+        fprintf(file, "%llu, ", i);
+        print_helper(c_random); 
+        print_helper(lcg); 
+        print_helper(xorshift); 
+        print_helper(xorshift_star); 
+        print_helper(wyrand); 
+        print_helper(whisky); 
+        fprintf(file, "\n");
         
         if (i % 10 == 0) printf("Finished %llu\n", i);
     }
-    #endif
-
 
 }
 
