@@ -43,7 +43,7 @@ typedef struct {           \
 Define_Array(u64);
 Define_Array(String);
 
-#undef Define_Array
+
 
 
 
