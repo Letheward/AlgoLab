@@ -74,7 +74,6 @@ char* source_files[] = {
     "macro.c",
     "allocator.c",
     "sort.c",
-    "crazy_macro.c",
     "index_array.c",
     "gibberish_code_generator.c",
     "simd.c",
