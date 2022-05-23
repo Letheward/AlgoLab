@@ -38,16 +38,12 @@ typedef struct {
 // not Array_Array(String) (wrong and will not compile)
 #define macro_concat(a, b) a ## b
 
-
-
-// basic utilities
+// utilities
 #define string(s)            (String) {(u8*) s, sizeof(s) - 1}           // make a String from a c string (char*) 
 #define array_string(s)      (String) {(u8*) s, sizeof(s)}               // make a String from an array, like int data[] = {1, 2, 3, 4, 5}
 #define data_string(s)       (String) {(u8*) &s, sizeof(s)}              // make a String from a value, like float v = 1.37;
 #define length_of(array)     (sizeof(array) / sizeof(array[0]))
 #define array(Type, c_array) (Array(Type)) {c_array, length_of(c_array)} // convert C stack array to Array(Type)
-
-
 
 // array
 #define Array(Type) macro_concat(Array_, Type)
@@ -63,6 +59,20 @@ typedef struct {                  \
     Array(Type) base;             \
     u64         allocated;        \
 } DynamicArray(Type)              \
+
+
+// test
+void nested_types() {
+
+    printf("==== Nested Types ====\n");
+
+    Define_Array(String);
+    Define_Array(Array(String));
+    Define_Array(Array(Array(String)));
+
+    Array(Array(Array(String))) test = {0};
+    printf("%p\n\n", (void*) test.data); // just to shut off unused warning
+}
 
 
 
@@ -269,7 +279,6 @@ void dynamic_array_and_generics() {
 
 
 
-
 /* ==== Advanced Evil Black Magic ==== */
 
 /*
@@ -282,20 +291,6 @@ See:
 
 */
 
-
-
-void nested_types() {
-
-    printf("==== Nested Types ====\n");
-
-    Define_Array(Array(String));
-    Define_Array(Array(Array(String)));
-    Define_Array(Array(Array(Array(String))));
-
-    Array(Array(Array(Array(String)))) test = {0};
-    printf("%p\n\n", (void*) test.data); // just to shut off unused warning
-    
-}
 
 
 
