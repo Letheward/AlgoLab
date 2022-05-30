@@ -110,7 +110,7 @@ void bubble_sort(Array(u64) in) {
             if (a > b) {
                 in.data[i    ] = b;
                 in.data[i + 1] = a;
-                if (!found) found = 1;
+                found = 1;
             }
         }
 
@@ -181,13 +181,6 @@ int u64_compare_c(const void* a, const void* b) {
 
 int main() {
 
-    {
-        struct timespec seed;
-        clock_gettime(CLOCK_MONOTONIC, &seed);
-    //    srand(seed.tv_nsec);
-    }
-
-
 /*/
     String s_inputs[] = {
         string("some"),
@@ -209,9 +202,17 @@ int main() {
 /*/
 
 
-    for (u64 i = 0; i < 1; i++) {
+/*/
+    {
+        struct timespec seed;
+        clock_gettime(CLOCK_MONOTONIC, &seed);
+        srand(seed.tv_nsec);
+    }
+/*/
 
-        Array(u64) input = random_array(32, 32768);
+    for (u64 i = 0; i < 32; i++) {
+
+        Array(u64) input = random_array(1024 * 64, 1024);
         
         //print_array(input);
        
@@ -224,7 +225,7 @@ int main() {
         
         time_it();
 
-        print_array(input);
+        //print_array(input);
         
         free(input.data);
     }
