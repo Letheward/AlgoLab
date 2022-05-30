@@ -118,9 +118,6 @@ void bubble_sort(Array(u64) in) {
     }
 }
 
-
-
-
 // modify more 
 void selection_sort(Array(u64) in) {
 
@@ -140,12 +137,43 @@ void selection_sort(Array(u64) in) {
     }
 }
 
+void quick_sort_helper(u64* in, s64 start, s64 end) {
+    
+    if (start >= end) return;
+
+    s64 at    = start;
+    u64 pivot = in[end];
+
+    for (s64 i = start; i < end; i++) {
+        if (pivot > in[i]) { // hardcoded is much faster than providing a compare()
+            if (at != i) {
+                u64 temp = in[i];
+                in[i]    = in[at];
+                in[at]   = temp;
+            }
+            at++;
+        }
+    }
+    
+    u64 temp = in[end];
+    in[end]  = in[at];
+    in[at]   = temp;
+
+    quick_sort_helper(in, start, at - 1);
+    quick_sort_helper(in, at + 1, end);
+}
+
+void quick_sort(Array(u64) in) {
+    quick_sort_helper(in.data, 0, (s64) in.count - 1); // todo: make u64 count work
+}
 
 
-
-
-int int_cmp(const void* a, const void* b) {
-    return *(int*) a - *(int*) b;
+int u64_compare_c(const void* a, const void* b) {
+    u64 ra = *(u64*) a; 
+    u64 rb = *(u64*) b;
+    if (ra > rb) return  1;
+    if (ra < rb) return -1;
+    return 0;
 }
 
 
@@ -170,28 +198,6 @@ int main() {
         string("algorithms"),
     };
 /*/
-
- 
-    for (u64 i = 0; i < 16; i++) {
-
-        Array(u64) input = random_array(1024, 1024);
-        
-        //print_array(input);
-       
-        time_it();
-        
-        //bubble_sort(input);
-        selection_sort(input);
-        //qsort(input.data, input.count, sizeof(u64), int_cmp);
-        
-        time_it();
-
-        //print_array(input);
-        
-        free(input.data);
-    }
-
-   
    
 /*/
     printf("\n");
@@ -202,6 +208,26 @@ int main() {
     printf("\n");
 /*/
 
+
+    for (u64 i = 0; i < 1; i++) {
+
+        Array(u64) input = random_array(32, 32768);
+        
+        //print_array(input);
+       
+        time_it();
+        
+        //bubble_sort(input);
+        //selection_sort(input);
+        quick_sort(input);
+        //qsort(input.data, input.count, sizeof(u64), u64_compare_c);
+        
+        time_it();
+
+        print_array(input);
+        
+        free(input.data);
+    }
 
 
 
