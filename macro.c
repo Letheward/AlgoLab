@@ -60,6 +60,11 @@ typedef struct {                  \
     u64         allocated;        \
 } DynamicArray(Type)              \
 
+// Array() cannot handle something like Thing*, so this is for that 
+#define Pointer(Type) macro_concat(Pointer_Of_, Type)
+#define Define_Pointer(Type) typedef Type* Pointer(Type);
+
+
 
 // test
 void nested_types() {
@@ -67,11 +72,13 @@ void nested_types() {
     printf("==== Nested Types ====\n");
 
     Define_Array(String);
-    Define_Array(Array(String));
-    Define_Array(Array(Array(String)));
+    Define_Pointer(String);
+    Define_Array(Pointer(String));
+    Define_Array(Array(Pointer(String)));
+    Define_DynamicArray(Array(Pointer(String)));
 
-    Array(Array(Array(String))) test = {0};
-    printf("%p\n\n", (void*) test.data); // just to shut off unused warning
+    DynamicArray(Array(Pointer(String))) test = {0};
+    printf("%llu\n\n", test.allocated); // just to shut off unused warning
 }
 
 
