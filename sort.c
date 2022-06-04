@@ -137,34 +137,34 @@ void selection_sort(Array(u64) in) {
     }
 }
 
-void quick_sort_helper(u64* in, s64 start, s64 end) {
-    
-    if (start >= end) return;
 
-    s64 at    = start;
+// todo: validate, make u64 work
+void quick_sort_helper(u64* in, s64 start, s64 end) {
+
+    if (start >= end || start < 0) return; 
+
     u64 pivot = in[end];
 
-    for (s64 i = start; i < end; i++) {
-        if (pivot > in[i]) { // hardcoded is much faster than providing a compare()
-            if (at != i) {
-                u64 temp = in[i];
-                in[i]    = in[at];
-                in[at]   = temp;
-            }
-            at++;
+    s64 i = start;
+    for (s64 j = start; j < end; j++) {
+        if (pivot > in[j]) {
+            u64 temp = in[i];
+            in[i]    = in[j];
+            in[j]    = temp;
+            i++;
         }
     }
-    
-    u64 temp = in[end];
-    in[end]  = in[at];
-    in[at]   = temp;
 
-    quick_sort_helper(in, start, at - 1);
-    quick_sort_helper(in, at + 1, end);
+    u64 temp = in[i];
+    in[i]    = in[end];
+    in[end]  = temp;
+
+    quick_sort_helper(in, start, i - 1);
+    quick_sort_helper(in, i + 1, end);
 }
 
 void quick_sort(Array(u64) in) {
-    quick_sort_helper(in.data, 0, (s64) in.count - 1); // todo: make u64 count work
+    quick_sort_helper(in.data, 0, (s64) in.count - 1);
 }
 
 
@@ -212,7 +212,7 @@ int main() {
 
     for (u64 i = 0; i < 32; i++) {
 
-        Array(u64) input = random_array(1024 * 64, 1024);
+        Array(u64) input = random_array(1024 * 64, 32768);
         
         //print_array(input);
        
