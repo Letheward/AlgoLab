@@ -6,7 +6,27 @@
 #include <time.h>
 
 
-/* ==== Builtin Types ==== */
+
+
+/* ==== Macros ==== */
+
+#define length_of(array)   (sizeof(array) / sizeof(array[0]))
+#define string(s)          (String) {(u8*) s, sizeof(s) - 1}
+#define array(Type, array) (Array(Type)) {array, length_of(array)} 
+#define sort(in, compare)  qsort(in.data, in.count, sizeof(in.data[0]), compare)
+
+#define Array(Type) Array_ ## Type
+#define Define_Array(Type) \
+typedef struct {           \
+    Type* data;            \
+    u64   count;           \
+} Array(Type)              \
+
+
+
+
+
+/* ==== Types ==== */
 
 typedef unsigned char           u8;
 typedef unsigned short int      u16;
@@ -24,21 +44,6 @@ typedef struct {
     u64 count;
 } String;
 
-
-
-
-/* ==== Macros ==== */
-
-#define length_of(array)   (sizeof(array) / sizeof(array[0]))
-#define string(s)          (String) {(u8*) s, sizeof(s) - 1}
-#define array(Type, array) (Array(Type)) {array, length_of(array)} 
-
-#define Array(Type) Array_ ## Type
-#define Define_Array(Type) \
-typedef struct {           \
-    Type* data;            \
-    u64   count;           \
-} Array(Type)              \
 
 Define_Array(u64);
 Define_Array(String);
@@ -96,6 +101,7 @@ void print(String s) {
 
 /* ==== Algorithms ==== */
 
+
 void bubble_sort(Array(u64) in) {
 
     while (1) {
@@ -118,7 +124,9 @@ void bubble_sort(Array(u64) in) {
     }
 }
 
-// modify more 
+
+
+// todo: cleanup 
 void selection_sort(Array(u64) in) {
 
     for (u64 i = 0; i < in.count - 1; i++) {
@@ -138,26 +146,52 @@ void selection_sort(Array(u64) in) {
 }
 
 
+
+void insertion_sort(Array(u64) in) {
+
+    for (u64 i = 1; i < in.count; i++) {
+    
+        u64 key = in.data[i];
+    
+        u64 j = i;
+        while (j > 0 && in.data[j - 1] > key) {
+            in.data[j] = in.data[j - 1];
+            j--;
+        }
+    
+        in.data[j] = key;
+    }
+}
+
+
+
 // todo: validate, make u64 work
 void quick_sort_helper(u64* in, s64 start, s64 end) {
 
-    if (start >= end || start < 0) return; 
+    if (start < 0 || start >= end) return; 
 
     u64 pivot = in[end];
 
     s64 i = start;
     for (s64 j = start; j < end; j++) {
+
         if (pivot > in[j]) {
-            u64 temp = in[i];
-            in[i]    = in[j];
-            in[j]    = temp;
+            
+            u64 a = in[i];
+            u64 b = in[j];
+            in[i] = b;
+            in[j] = a;
+            
             i++;
         }
     }
-
-    u64 temp = in[i];
-    in[i]    = in[end];
-    in[end]  = temp;
+    
+    {
+        u64 a   = in[i];
+        u64 b   = in[end];
+        in[i]   = b;
+        in[end] = a;
+    }
 
     quick_sort_helper(in, start, i - 1);
     quick_sort_helper(in, i + 1, end);
@@ -166,6 +200,73 @@ void quick_sort_helper(u64* in, s64 start, s64 end) {
 void quick_sort(Array(u64) in) {
     quick_sort_helper(in.data, 0, (s64) in.count - 1);
 }
+
+
+
+// todo: validate
+void heap_sort(Array(u64) in) {
+
+    // parent: (i - 1) / 2
+    // left:   2 * i + 1
+    // right:  2 * i + 2
+
+    // heapify
+    s64 start = (in.count - 2) / 2;
+    while (start >= 0) {
+        
+        // sift down
+        u64 root = start;
+        u64 end  = in.count - 1;
+        while (2 * root + 1 <= end) {
+            
+            u64 child = 2 * root + 1;
+            u64 swap  = root;
+            
+            if (in.data[swap] < in.data[child])                         swap = child;
+            if (in.data[swap] < in.data[child + 1] && child + 1 <= end) swap = child + 1;
+            if (swap == root) break;
+            
+            u64 a = in.data[root];
+            u64 b = in.data[swap];
+            in.data[root] = b;
+            in.data[swap] = a;
+            root = swap;
+        }
+
+        start--;
+    }
+    
+    u64 end = in.count - 1;
+    while (end > 0) {
+    
+        u64 a = in.data[end];
+        u64 b = in.data[0];
+        in.data[end] = b;
+        in.data[0]   = a;
+    
+        end--;    
+        
+        // sift down
+        u64 root = 0;
+        while (2 * root + 1 <= end) {
+            
+            u64 child = 2 * root + 1;
+            u64 swap  = root;
+            
+            if (in.data[swap] < in.data[child])                         swap = child;
+            if (in.data[swap] < in.data[child + 1] && child + 1 <= end) swap = child + 1;
+            if (swap == root) break;
+            
+            u64 a = in.data[root];
+            u64 b = in.data[swap];
+            in.data[root] = b;
+            in.data[swap] = a;
+            root = swap;
+        }
+    }
+}
+
+
 
 
 int u64_compare_c(const void* a, const void* b) {
@@ -181,47 +282,22 @@ int u64_compare_c(const void* a, const void* b) {
 
 int main() {
 
-/*/
-    String s_inputs[] = {
-        string("some"),
-        string("test"),
-        string("strings"),
-        string("for"),
-        string("sorting"),
-        string("algorithms"),
-    };
-/*/
-   
-/*/
-    printf("\n");
-    for (u64 i = 0; i < length_of(s_inputs); i++) {
-        print(s_inputs[i]);
-        printf("\n");
-    }
-    printf("\n");
-/*/
-
-
-/*/
-    {
-        struct timespec seed;
-        clock_gettime(CLOCK_MONOTONIC, &seed);
-        srand(seed.tv_nsec);
-    }
-/*/
-
+    
     for (u64 i = 0; i < 32; i++) {
 
-        Array(u64) input = random_array(1024 * 64, 32768);
+        Array(u64) input = random_array(1024 * 64, 1024);
         
         //print_array(input);
        
         time_it();
+
+        //sort(input, u64_compare_c);
         
         //bubble_sort(input);
         //selection_sort(input);
-        quick_sort(input);
-        //qsort(input.data, input.count, sizeof(u64), u64_compare_c);
+        //insertion_sort(input);
+        //quick_sort(input);
+        heap_sort(input);
         
         time_it();
 
@@ -229,8 +305,6 @@ int main() {
         
         free(input.data);
     }
-
-
 
 }
 
