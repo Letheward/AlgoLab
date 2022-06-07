@@ -104,6 +104,8 @@ void print(String s) {
 
 void bubble_sort(Array(u64) in) {
 
+    if (in.count < 2) return;
+    
     while (1) {
 
         u8 found = 0;
@@ -129,6 +131,8 @@ void bubble_sort(Array(u64) in) {
 // todo: cleanup 
 void selection_sort(Array(u64) in) {
 
+    if (in.count < 2) return;
+    
     for (u64 i = 0; i < in.count - 1; i++) {
 
         u64 min = i;
@@ -149,6 +153,8 @@ void selection_sort(Array(u64) in) {
 
 void insertion_sort(Array(u64) in) {
 
+    if (in.count < 2) return;
+    
     for (u64 i = 1; i < in.count; i++) {
     
         u64 key = in.data[i];
@@ -198,6 +204,7 @@ void quick_sort_helper(u64* in, s64 start, s64 end) {
 }
 
 void quick_sort(Array(u64) in) {
+    if (in.count < 2) return;
     quick_sort_helper(in.data, 0, (s64) in.count - 1);
 }
 
@@ -205,7 +212,9 @@ void quick_sort(Array(u64) in) {
 
 // todo: validate
 void heap_sort(Array(u64) in) {
-
+    
+    if (in.count < 2) return;
+    
     // parent: (i - 1) / 2
     // left:   2 * i + 1
     // right:  2 * i + 2
