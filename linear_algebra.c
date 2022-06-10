@@ -51,6 +51,10 @@ typedef struct {f32 s, yz, zx, xy;} Rotor3D;
 
 /* ==== Constants ==== */
 
+const Vector2 V2_UNIT = {1, 1};
+const Vector3 V3_UNIT = {1, 1, 1};
+const Vector4 V4_UNIT = {1, 1, 1, 1};
+
 const Vector3   V3_X  = {1, 0, 0};
 const Vector3   V3_Y  = {0, 1, 0};
 const Vector3   V3_Z  = {0, 0, 1};
@@ -84,6 +88,18 @@ const Matrix4 M4_IDENTITY = {
 
 
 /* ==== Vector and Matrix ==== */
+
+Vector2 v2_add(Vector2 a, Vector2 b) {
+    return (Vector2) {a.x + b.x, a.y + b.y};
+}
+
+Vector2 v2_sub(Vector2 a, Vector2 b) {
+    return (Vector2) {a.x - b.x, a.y - b.y};
+}
+
+Vector2 v2_scale(Vector2 v, f32 s) {
+    return (Vector2) {v.x * s, v.y * s};
+}
 
 Vector3 v3_reverse(Vector3 v) {
     return (Vector3) {-v.x, -v.y, -v.z};
@@ -293,50 +309,50 @@ Matrix4 r3d_to_m4(Rotor3D r) {
 
 Matrix3 r3d_to_m3(Rotor3D r) {
     
-    f32 s_s   = r.s  * r.s;
-    f32 xy_xy = r.xy * r.xy;
-    f32 yz_yz = r.yz * r.yz;
-    f32 zx_zx = r.zx * r.zx;
+    f32 ss   = r.s  * r.s;
+    f32 xyxy = r.xy * r.xy;
+    f32 yzyz = r.yz * r.yz;
+    f32 zxzx = r.zx * r.zx;
 
-    f32 s_xy  = r.s  * r.xy;
-    f32 s_zx  = r.s  * r.zx;
-    f32 s_yz  = r.s  * r.yz;
+    f32 sxy  = r.s  * r.xy;
+    f32 szx  = r.s  * r.zx;
+    f32 syz  = r.s  * r.yz;
 
-    f32 yz_zx = r.yz * r.zx;
-    f32 yz_xy = r.yz * r.xy;
-    f32 zx_xy = r.zx * r.xy;
-
-    f32 sum   = s_s - yz_yz - zx_zx - xy_xy;
+    f32 yzzx = r.yz * r.zx;
+    f32 yzxy = r.yz * r.xy;
+    f32 zxxy = r.zx * r.xy;
     
+    f32 sum  = ss - yzyz - zxzx - xyxy;
+
     return (Matrix3) {
-        { 2 * yz_yz  + sum   , 2 * ( s_xy + yz_zx), 2 * (yz_xy - s_zx )},
-        { 2 * (yz_zx - s_xy ), 2 * zx_zx  + sum   , 2 * ( s_yz + zx_xy)},
-        { 2 * (s_zx  + yz_xy), 2 * (zx_xy - s_yz ), 2 * xy_xy  + sum   },
+        { 2 *  yzyz + sum , 2 * (yzzx + sxy), 2 * (yzxy - szx)},
+        { 2 * (yzzx - sxy), 2 *  zxzx + sum , 2 * (zxxy + syz)},
+        { 2 * (yzxy + szx), 2 * (zxxy - syz), 2 *  xyxy + sum },
     };
 }
 
 Matrix4 r3d_to_m4(Rotor3D r) {
     
-    f32 s_s   = r.s  * r.s;
-    f32 xy_xy = r.xy * r.xy;
-    f32 yz_yz = r.yz * r.yz;
-    f32 zx_zx = r.zx * r.zx;
+    f32 ss   = r.s  * r.s;
+    f32 xyxy = r.xy * r.xy;
+    f32 yzyz = r.yz * r.yz;
+    f32 zxzx = r.zx * r.zx;
 
-    f32 s_xy  = r.s  * r.xy;
-    f32 s_zx  = r.s  * r.zx;
-    f32 s_yz  = r.s  * r.yz;
+    f32 sxy  = r.s  * r.xy;
+    f32 szx  = r.s  * r.zx;
+    f32 syz  = r.s  * r.yz;
 
-    f32 yz_zx = r.yz * r.zx;
-    f32 yz_xy = r.yz * r.xy;
-    f32 zx_xy = r.zx * r.xy;
+    f32 yzzx = r.yz * r.zx;
+    f32 yzxy = r.yz * r.xy;
+    f32 zxxy = r.zx * r.xy;
     
-    f32 sum   = s_s - yz_yz - zx_zx - xy_xy;
+    f32 sum  = ss - yzyz - zxzx - xyxy;
 
     return (Matrix4) {
-        { 2 * yz_yz  + sum   , 2 * ( s_xy + yz_zx), 2 * (yz_xy - s_zx ), 0},
-        { 2 * (yz_zx - s_xy ), 2 * zx_zx  + sum   , 2 * ( s_yz + zx_xy), 0},
-        { 2 * (s_zx  + yz_xy), 2 * (zx_xy - s_yz ), 2 * xy_xy  + sum   , 0},
-        {                   0,                   0,                   0, 1},
+        { 2 *  yzyz + sum , 2 * (yzzx + sxy), 2 * (yzxy - szx), 0},
+        { 2 * (yzzx - sxy), 2 *  zxzx + sum , 2 * (zxxy + syz), 0},
+        { 2 * (yzxy + szx), 2 * (zxxy - syz), 2 *  xyxy + sum , 0},
+        {                0,                0,                0, 1},
     };
 }
 
@@ -345,6 +361,13 @@ Matrix4 r3d_to_m4(Rotor3D r) {
 
 
 /* ==== lerps ==== */
+
+Vector2 lerp_v2(Vector2 a, Vector2 b, f32 t) {
+    return (Vector2) {
+        a.x + (b.x - a.x) * t,
+        a.y + (b.y - a.y) * t,
+    };
+}
 
 Vector3 lerp_v3(Vector3 a, Vector3 b, f32 t) {
     return (Vector3) {
