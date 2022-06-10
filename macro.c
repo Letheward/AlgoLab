@@ -32,7 +32,6 @@ typedef struct {
 
 /* ==== Basics ==== */
 
-
 // this is needed for nested concat
 // so, Array(Array(String)) will first expand to Array(Array_String),
 // not Array_Array(String) (wrong and will not compile)
@@ -40,12 +39,11 @@ typedef struct {
 
 // utilities
 #define string(s)            (String) {(u8*) s, sizeof(s) - 1}           // make a String from a c string (char*) 
-#define array_string(s)      (String) {(u8*) s, sizeof(s)}               // make a String from an array, like int data[] = {1, 2, 3, 4, 5}
+#define array_string(s)      (String) {(u8*) s, sizeof(s)}               // make a String from an array, like u8 data[] = {1, 2, 3, 4, 5}
 #define data_string(s)       (String) {(u8*) &s, sizeof(s)}              // make a String from a value, like float v = 1.37;
 #define length_of(array)     (sizeof(array) / sizeof(array[0]))
 #define array(Type, c_array) (Array(Type)) {c_array, length_of(c_array)} // convert C stack array to Array(Type)
 
-// array
 #define Array(Type) macro_concat(Array_, Type)
 #define Define_Array(Type) \
 typedef struct {           \
@@ -66,12 +64,81 @@ typedef struct {                  \
 
 
 
+
+/* ==== Strings ==== */
+
+void print(String s) {
+    for (u64 i = 0; i < s.count; i++) putchar(s.data[i]);
+}
+
+void string_test() {
+    
+    printf("==== String Test ====\n");
+    
+    u8  a[] = {87, 111, 114, 108, 100, 33, 10};
+    u32 b   = 0x74736554;
+
+    print(string("Hello "));
+    print(array_string(a));
+    print(data_string(b));
+
+    printf("\n\n");
+}
+
+
+
+
+
+/* ==== Raw Bits and Type-Punning ==== */
+
+#define bit8( Type, name) ((union {Type a; u8  b;}) {.a = name}).b
+#define bit16(Type, name) ((union {Type a; u16 b;}) {.a = name}).b
+#define bit32(Type, name) ((union {Type a; u32 b;}) {.a = name}).b
+#define bit64(Type, name) ((union {Type a; u64 b;}) {.a = name}).b
+
+#define from_bit8( Type, name) ((union {Type a; u8  b;}) {.b = name}).a
+#define from_bit16(Type, name) ((union {Type a; u16 b;}) {.b = name}).a
+#define from_bit32(Type, name) ((union {Type a; u32 b;}) {.b = name}).a
+#define from_bit64(Type, name) ((union {Type a; u64 b;}) {.b = name}).a
+
+
+// test
+void raw_bits_and_type_punning() {
+
+    printf("==== Raw Bits and Type-Punning ====\n");
+    
+    // common usage
+    {
+        f32 a = 42;
+        printf("%.8x\n", bit32(f32, a));
+        
+        // literal also works
+        printf("%.8x\n",    bit32(f32, 1));
+        printf("%.16llx\n", bit64(f64, 1));
+
+        printf("%f\n", from_bit32(f32, 0x42280000));
+    }
+
+    // partial data
+    {
+        f32 a = 42;
+        printf("%p\n", (void*) &a);
+        printf("%.8x\n", bit32(f32*, &a));
+    }
+
+    printf("\n");
+}
+
+
+
+
+/* ==== Nested Types ==== */
+
 // test
 void nested_types() {
 
     printf("==== Nested Types ====\n");
 
-    Define_Array(String);
     Define_Pointer(String);
     Define_Array(Pointer(String));
     Define_Array(Array(Pointer(String)));
@@ -80,6 +147,7 @@ void nested_types() {
     DynamicArray(Array(Pointer(String))) test = {0};
     printf("%llu\n\n", test.allocated); // just to shut off unused warning
 }
+
 
 
 
@@ -118,6 +186,7 @@ void safe_varargs() {
 
     printf("\n");
 }
+
 
 
 
@@ -200,11 +269,6 @@ void selection_sort_ ## Type (Array(Type) in, u8 (*compare)(Type a, Type b)) { \
     Array(f32)    : print_array_f32,   \
     Array(String) : print_array_String \
 )(T);                                  \
-
-
-void print(String s) {
-    for (u64 i = 0; i < s.count; i++) putchar(s.data[i]);
-}
 
 void print_array_s32(Array(s32) a) {
     for (u64 i = 0; i < a.count; i++) printf("%d ", a.data[i]);
@@ -302,7 +366,9 @@ See:
 
 
 int main() {
-
+    
+    string_test();
+    raw_bits_and_type_punning();
     nested_types();   
     safe_varargs();
     dynamic_array_and_generics();
