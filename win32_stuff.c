@@ -38,7 +38,6 @@ void win32_print_find_data(WIN32_FIND_DATA* data) {
     );
 }
 
-// todo: find a way to return the filenames
 void win32_print_all_matched_files(char* s) {
 
     WIN32_FIND_DATA find_data;
@@ -55,10 +54,67 @@ void win32_print_all_matched_files(char* s) {
 }
 
 
+char** win32_get_all_matched_filename_c_strings(char* s, u64* count_out) {
+
+    *count_out = 0;
+
+    WIN32_FIND_DATA find_data;
+    HANDLE handle = FindFirstFile(s, &find_data);
+    if (handle == INVALID_HANDLE_VALUE) return NULL;
+    
+    u64 count = 1;
+    
+    while (1) {
+        BOOL found = FindNextFile(handle, &find_data);
+        if (!found) break;
+        count++;
+    }
+
+    *count_out = count;
+
+    char** out = malloc(sizeof(char*) * count); // using malloc(), ehh...
+    {
+        handle = FindFirstFile(s, &find_data);
+
+        u64 acc  = 0;
+        out[acc] = malloc(strlen(find_data.cFileName) + 1); // ehh....
+        strcpy(out[acc], find_data.cFileName); 
+        
+        while (1) {
+            BOOL found = FindNextFile(handle, &find_data);
+            if (!found) break;
+            acc++;
+            out[acc] = malloc(strlen(find_data.cFileName) + 1); // ehh....
+            strcpy(out[acc], find_data.cFileName); 
+        }
+    }
+
+    FindClose(handle);
+
+    return out;
+}
+
+void free_filename_c_strings(char** names, u64 count) {
+    for (u64 i = 0; i < count; i++) {
+        free(names[i]);
+    }
+    free(names);
+}
+
+
 
 int main() {
 
-    win32_print_all_matched_files("*.c");
+    //win32_print_all_matched_files("*.c");
+
+    u64 count;
+    char** filenames = win32_get_all_matched_filename_c_strings("*.c", &count);
+    
+    for (u64 i = 0; i < count; i++) {
+        printf("%s\n", filenames[i]);
+    }
+    
+    free_filename_c_strings(filenames, count);
 
 }
 
