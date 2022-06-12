@@ -91,15 +91,15 @@ void string_test() {
 
 /* ==== Raw Bits and Type-Punning ==== */
 
-#define bit8( Type, name) ((union {Type a; u8  b;}) {.a = name}).b
-#define bit16(Type, name) ((union {Type a; u16 b;}) {.a = name}).b
-#define bit32(Type, name) ((union {Type a; u32 b;}) {.a = name}).b
-#define bit64(Type, name) ((union {Type a; u64 b;}) {.a = name}).b
+#define bit8( Type, value) ((union {Type a; u8  b;}) {.a = value}).b
+#define bit16(Type, value) ((union {Type a; u16 b;}) {.a = value}).b
+#define bit32(Type, value) ((union {Type a; u32 b;}) {.a = value}).b
+#define bit64(Type, value) ((union {Type a; u64 b;}) {.a = value}).b
 
-#define from_bit8( Type, name) ((union {Type a; u8  b;}) {.b = name}).a
-#define from_bit16(Type, name) ((union {Type a; u16 b;}) {.b = name}).a
-#define from_bit32(Type, name) ((union {Type a; u32 b;}) {.b = name}).a
-#define from_bit64(Type, name) ((union {Type a; u64 b;}) {.b = name}).a
+#define from_bit8( Type, value) ((union {Type a; u8  b;}) {.b = value}).a
+#define from_bit16(Type, value) ((union {Type a; u16 b;}) {.b = value}).a
+#define from_bit32(Type, value) ((union {Type a; u32 b;}) {.b = value}).a
+#define from_bit64(Type, value) ((union {Type a; u64 b;}) {.b = value}).a
 
 
 // test

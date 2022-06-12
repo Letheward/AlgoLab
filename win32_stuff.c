@@ -5,7 +5,7 @@
 
 typedef unsigned long long int u64;
 
-#define bit64(Type, name) ((union {Type a; u64 b;}) {.a = name}).b
+#define bit64(Type, value) ((union {Type a; u64 b;}) {.a = value}).b
 
 void win32_print_find_data(WIN32_FIND_DATA* data) {
 
