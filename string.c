@@ -484,6 +484,7 @@ String read_line() {
     fgets(buffer, count, stdin);
     String s = {(u8*) buffer, strlen(buffer)};
     
+    if (s.count == 0) return (String) {0};
     if (s.data[s.count - 1] == '\n') s.count -= 1;
     
     return s;
