@@ -263,7 +263,9 @@ int main() {
         }
 
         typedef Rational32 (*Function)(Rational32, Rational32);
+
         Function funcs[] = {r32_add, r32_sub, r32_mul, r32_div, r32_mod};
+        char*    ops  [] = { " + " , " - "  , " * "  , " / "  , " %% " };
 
         for (int i = 0; i < 32; i++) {
 
@@ -271,19 +273,9 @@ int main() {
             Rational32 b = get_random_r32(10);
             
             u32 index = rand() % 5;
-            char* op;
-
-            switch (index) {
-                case 0:  op = " + ";  break;
-                case 1:  op = " - ";  break;
-                case 2:  op = " * ";  break;
-                case 3:  op = " / ";  break;
-                case 4:  op = " %% "; break;
-                default: op = "   ";  break;
-            }
-           
+          
             print_r32(a);
-            printf(op);
+            printf(ops[index]);
             print_r32(b);
             printf(" = ");
             print_r32(funcs[index](a, b));
