@@ -22,7 +22,7 @@ typedef double                  f64;
 
 
 
-/* ==== Reference gcd() and lcm() ==== */
+/* ==== Reference ==== */
 
 s32 gcd_s32(s32 a, s32 b) {
     
@@ -46,11 +46,10 @@ s32 lcm_s32(s32 a, s32 b) {
 
 
 
-
 /* ==== Rational ==== */
 
-typedef struct {s32 numer, denom;} Rational32;
-typedef struct {s64 numer, denom;} Rational64;
+typedef struct {s32 numer, denom;} Rational32; // safe range: +-[1/2^15, 2^15/1] 
+typedef struct {s64 numer, denom;} Rational64; // safe range: +-[1/2^31, 2^31/1]
 
 // Vector and Matrix
 typedef struct {Rational32 x, y;}       R32Vector2;
@@ -123,12 +122,14 @@ Rational32 r32_sub(Rational32 a, Rational32 b) {
     return r32_reduce((Rational32) {an * bd - bn * ad, ad * bd});
 }
 
+// todo: this looks faster than do some gcd to each side and divide first then multiply, but will overflow earlier
 Rational32 r32_mul(Rational32 a, Rational32 b) {
     Rational32 out = {a.numer * b.numer, a.denom * b.denom};
     return r32_reduce(out);
 }
 
 // note: will not check for divide by 0
+// todo: this looks faster than do some gcd to each side and divide first then multiply, but will overflow earlier
 Rational32 r32_div(Rational32 a, Rational32 b) {
     Rational32 out = {a.numer * b.denom, a.denom * b.numer};
     return r32_reduce(out);
@@ -236,15 +237,33 @@ void print_r32m4(R32Matrix4 in) {
 
 
 
-
-
-
 int main() {
 
     printf("[Arithmetic]\n\n");   
     {
+
+        // If we get results (a, b) at this range, care should be taken before next arithmetic. 
+        // It is close to overflow/underflow, even with doing some reduce to both side of the operator first,
+        // because there is still some chance to have coprimes.   
+        printf("Limit:\n"); 
+        {
+            Rational32 a = {32769, 32768};
+            Rational32 b = {65537, 32768};
+            Rational32 c = r32_mul(a, b);
+
+            print_r32(a);
+            printf(" * ");
+            print_r32(b);
+            printf(" = ");
+            print_r32(c);
+            printf(" = %.12f (overflow, wrong)\n", r32_to_f64(c));
+            
+            f64 fa = r32_to_f64(a);
+            f64 fb = r32_to_f64(b);
+            printf("   %.12f *    %6.12f = %.12f\n\n", fa, fb, fa * fb);
+        }
+
         typedef Rational32 (*Function)(Rational32, Rational32);
-        
         Function funcs[] = {r32_add, r32_sub, r32_mul, r32_div, r32_mod};
 
         for (int i = 0; i < 32; i++) {
