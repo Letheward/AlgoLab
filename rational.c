@@ -123,7 +123,7 @@ Rational32 r32_sub(Rational32 a, Rational32 b) {
 }
 
 // note (mul and div): these looks faster than doing some gcd work to each operands, divide first then multiply, 
-// but will overflow earlier in many cases (those version still has chance to have coprimes, so they are not safe either)
+// but will overflow earlier in many cases (those versions still have chance to encounter coprimes, so they are not safe either)
 
 Rational32 r32_mul(Rational32 a, Rational32 b) {
     return r32_reduce((Rational32) {a.numer * b.numer, a.denom * b.denom});
