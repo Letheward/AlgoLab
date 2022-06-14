@@ -149,7 +149,9 @@ u8* win32_load_file(char* s, u64* count_out) {
     {
         LARGE_INTEGER size;
         BOOL result = GetFileSizeEx(handle, &size);
-        count = bit64(LARGE_INTEGER, size);
+        if (!result) goto fail;
+
+        count = (u64) size.QuadPart;
         *count_out = count;
     }
    
@@ -234,7 +236,8 @@ int main() {
 
         u64 size;
         u8* data = win32_load_file(s, &size);
-        u8  ok   = win32_save_file("temp", data, size);
+
+        win32_save_file("temp", data, size);
         
         printf("\nLoaded %s: %p size: %llu\n", s, data, size);
         free(data);
