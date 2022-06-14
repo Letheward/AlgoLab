@@ -122,17 +122,16 @@ Rational32 r32_sub(Rational32 a, Rational32 b) {
     return r32_reduce((Rational32) {an * bd - bn * ad, ad * bd});
 }
 
-// todo: this looks faster than do some gcd to each side and divide first then multiply, but will overflow earlier
+// note (mul and div): these looks faster than doing some gcd work to each operands, divide first then multiply, 
+// but will overflow earlier in many cases (those version still has chance to have coprimes, so they are not safe either)
+
 Rational32 r32_mul(Rational32 a, Rational32 b) {
-    Rational32 out = {a.numer * b.numer, a.denom * b.denom};
-    return r32_reduce(out);
+    return r32_reduce((Rational32) {a.numer * b.numer, a.denom * b.denom});
 }
 
 // note: will not check for divide by 0
-// todo: this looks faster than do some gcd to each side and divide first then multiply, but will overflow earlier
 Rational32 r32_div(Rational32 a, Rational32 b) {
-    Rational32 out = {a.numer * b.denom, a.denom * b.numer};
-    return r32_reduce(out);
+    return r32_reduce((Rational32) {a.numer * b.denom, a.denom * b.numer});
 }
 
 // note: will not check for mod by 0
