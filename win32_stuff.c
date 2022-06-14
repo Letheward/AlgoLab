@@ -1,6 +1,8 @@
 #include <stdio.h>
-#include <windows.h>
+#include <stdlib.h>
+#include <string.h>
 
+#include <windows.h>
 
 
 typedef unsigned long long int u64;
