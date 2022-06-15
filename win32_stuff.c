@@ -221,29 +221,82 @@ u8 win32_save_file(char* s, u8* data, u64 count) {
 
 
 
+/* ==== Time ==== */
+
+u64 win32_get_measuring_tick() {
+    LARGE_INTEGER t;
+    QueryPerformanceCounter(&t);
+    return t.QuadPart;
+}
+
+// the result of this will stay the same, so we can save it
+u64 win32_get_measuring_tick_per_second() {
+    LARGE_INTEGER f;
+    QueryPerformanceFrequency(&f); 
+    return f.QuadPart;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 int main() {
 
-    u64 count;
-    char** filenames = win32_get_all_matched_filename_c_strings("*.c", &count);
-    if (!filenames) return 1;
 
-    for (u64 i = 0; i < count; i++) {
-        printf("%s\n", filenames[i]);
-    }
-
+    /* ---- File ---- */
     {
-        char* s = filenames[rand() % count];
+        u64 count;
+        char** filenames = win32_get_all_matched_filename_c_strings("*.c", &count);
+        if (!filenames) return 1;
 
-        u64 size;
-        u8* data = win32_load_file(s, &size);
-
-        win32_save_file("temp", data, size);
+        for (u64 i = 0; i < count; i++) printf("%s\n", filenames[i]);
+        printf("\n");
         
-        printf("\nLoaded %s: %p size: %llu\n", s, data, size);
-        free(data);
+        {
+            char* loaded = filenames[rand() % count];
+
+            u64 size;
+            u8* data = win32_load_file(loaded, &size);
+            if (!data) return 1;
+        
+            printf("Loaded %s: %p size: %llu\n", loaded, data, size);
+            
+            char* saved = "temp";
+            u8 ok = win32_save_file(saved, data, size);
+            if (!ok) return 1;
+
+            printf("Saved  %s: size: %llu\n", saved, size);
+            
+            free(data);
+        }
+
+        free_filename_c_strings(filenames, count);
+    }
+    
+    
+    /* ---- Time ---- */
+    {
+        printf("\n");
+
+        u64 freq  = win32_get_measuring_tick_per_second();
+
+        u64 start = win32_get_measuring_tick();
+        
+        printf("Printing this string takes...\n");
+        
+        u64 end   = win32_get_measuring_tick();
+        
+        printf("%.3f microseconds\n", (end - start) * 1000000 / (f64) freq);
     }
 
-    free_filename_c_strings(filenames, count);
-    
+
 }
 
