@@ -603,9 +603,8 @@ void program() {
     /* ---- Print, Temp Allocator ---- */
     runtime.alloc = temp_alloc; // string_replace() and base64_encode() will not leak because of temp allocator
 
-    String s = string_replace(string("This is a string.\n"), string("string"), string("cat"));
+    print(string_replace(string("This is a string.\n"), string("string"), string("cat")));
     
-    print(s);
     print(
         string("She is @ meters high, likes @, and has password @.\nHer email is cat@@cat.meow\n"), 
         format_s32(42, 10), 
