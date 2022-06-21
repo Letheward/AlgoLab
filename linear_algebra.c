@@ -277,7 +277,7 @@ Rotor3D r3d_mul(Rotor3D a, Rotor3D b) {
 // R* V R
 Vector3 v3_rotate(Vector3 v, Rotor3D r) {
 
-    // out result, a vector and a trivector
+    // temp result, a vector and a trivector
     f32 x   =  v.x * r.s  - v.y * r.xy + v.z * r.zx;
     f32 y   =  v.y * r.s  - v.z * r.yz + v.x * r.xy;
     f32 z   =  v.z * r.s  - v.x * r.zx + v.y * r.yz;
