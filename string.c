@@ -214,23 +214,30 @@ u8 string_equal(String a, String b) {
     return 1;
 }
 
-// dumb linear search, but may be faster for small inputs
+// naive search for now
 String string_find(String a, String b) {
     
-    if (!a.count || !b.count || !a.data || !b.data) return (String) {0};
-    
-    for (u64 i = 0; i < a.count; i++) {
-        if (a.data[i] == b.data[0]) {
-            for (u64 j = 0; j < b.count; j++) {
-                if (a.data[i + j] != b.data[j]) goto next;
-            }
-            return (String) {a.data + i, a.count - i};
-            next: continue;
+    if (!a.count || !b.count || !a.data || !b.data || (b.count > a.count)) return (String) {0};
+
+    for (u64 i = 0; i < a.count - b.count + 1; i++) {
+            
+        for (u64 j = 0; j < b.count; j++) {
+            if (a.data[i + j] != b.data[j]) goto next;
         }
+        
+        return (String) {a.data + i, a.count - i};
+        next: continue;
     }
     
     return (String) {0};
 }
+
+String string_find_and_skip(String a, String b) {
+    String result = string_find(a, b);
+    if (!result.count) return result; 
+    return (String) {result.data + b.count, result.count - b.count};
+}
+
 
 // if we want to use varargs, just make a stack array
 String string_concat(Array(String) strings) {
@@ -265,10 +272,9 @@ Array(String) string_split(String s, String separator) {
     String pos = s;
 
     u64 count = 1;
-    while (pos.count > 0) {
-        pos = string_find(pos, separator);
-        if (!pos.data) break;
-        pos = string_advance(pos, separator.count);
+    while (1) {
+        pos = string_find_and_skip(pos, separator);
+        if (!pos.count) break;
         count++;
     }
 
@@ -282,7 +288,7 @@ Array(String) string_split(String s, String separator) {
         if (!new.data) {out.data[i] = pos; break;}
         out.data[i] = (String) {pos.data, new.data - pos.data};
         pos = string_advance(new, separator.count);
-    };
+    }
 
     return out;
 }
@@ -299,7 +305,7 @@ String string_join(Array(String) s, String seperator) {
     for (u64 i = 0; i < s.count; i++) {
         for (u64 j = 0; j < s.data[i].count; j++) data[start + j] = s.data[i].data[j];
         start += s.data[i].count;
-        for (u64 i = 0; i < seperator.count; i++) data[start + i] = seperator.data[i];
+        for (u64 j = 0; j < seperator.count; j++) data[start + j] = seperator.data[j];
         start += seperator.count;
     }
    
@@ -432,7 +438,7 @@ String base64_encode(String in) {
 
     // padding at the end
     switch (in.count % 3) {
-        case 1: data[j - 2] = '=';
+        case 1: data[j - 2] = '='; // fall-through
         case 2: data[j - 1] = '=';
     }
 
@@ -447,7 +453,7 @@ String base64_encode(String in) {
 
 // basic print
 void print_string(String s) {
-    for (int i = 0; i < s.count; i++) putchar(s.data[i]);
+    for (u64 i = 0; i < s.count; i++) putchar(s.data[i]);
 }
 
 // todo: not robust, no escape with @, need more testing, deal with switching back allocator
@@ -541,8 +547,8 @@ int main(int arg_count, char** args) {
     runtime.temp_buffer.size = size;
     runtime.alloc = malloc;
 
-    runtime.input_buffer.data  = calloc(2048, sizeof(u8));
-    runtime.input_buffer.count = 2048;
+    runtime.input_buffer.data  = calloc(8192, sizeof(u8));
+    runtime.input_buffer.count = 8192;
 
     runtime.command_line_args = (Array(String)) {
         .data  = malloc(sizeof(String) * arg_count),
@@ -570,7 +576,7 @@ void program() {
     
     // if you want then get it, no need to write a different main() and worry about namespace pollution
     Array(String) args = runtime.command_line_args; 
-    
+
     String password;
     if (args.count > 1) {
         password = args.data[1];
@@ -608,7 +614,7 @@ void program() {
     String code = load_file(__FILE__); 
     print(string("\nCode of this:\n@\n"), base64_encode(code)); // no leak here, because of temp allocator
 
-
+   
     temp_reset();
     temp_info();
 

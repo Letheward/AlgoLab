@@ -178,16 +178,16 @@ u8 string_equal(String a, String b) {
 // dumb linear search for now
 String string_find(String a, String b) {
     
-    if (a.data == NULL || b.data == NULL) return (String) {0};
-    
-    for (u64 i = 0; i < a.count; i++) {
-        if (a.data[i] == b.data[0]) {
-            for (u64 j = 0; j < b.count; j++) {
-                if (a.data[i + j] != b.data[j]) goto next;
-            }
-            return (String) {a.data + i, a.count - i};
-            next: continue;
+    if (!a.count || !b.count || !a.data || !b.data || (b.count > a.count)) return (String) {0};
+
+    for (u64 i = 0; i < a.count - b.count + 1; i++) {
+            
+        for (u64 j = 0; j < b.count; j++) {
+            if (a.data[i + j] != b.data[j]) goto next;
         }
+        
+        return (String) {a.data + i, a.count - i};
+        next: continue;
     }
     
     return (String) {0};
