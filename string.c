@@ -411,6 +411,34 @@ String format_f32(float value) {
     return (String) {result, result_count};
 }
 
+// note: little endian
+String format_binary(String s) {
+    
+    u64 row       = s.count / 8;
+    u64 out_count = s.count * 9 + row;
+    
+    String out = {temp_alloc(out_count), out_count};
+    
+    u64 acc = 0;
+    for (u64 i = 0; i < s.count; i++) {
+
+        if (i % 8 == 0 && i > 0) {
+            out.data[acc] = '\n';
+            acc++;
+        }
+        
+        for (u64 j = 0; j < 8; j++) {
+            out.data[acc] = (s.data[i] & (0x1 << j)) ? '1': '0';
+            acc++;
+        }
+       
+        out.data[acc] = ' ';
+        acc++;
+    }
+    
+    return out;
+}
+
 // modified from a [public domain library](https://github.com/badzong/base64/)
 String base64_encode(String in) {
     
@@ -600,7 +628,7 @@ void program() {
     builder_free(&builder);
 
 
-    /* ---- Print, Temp Allocator ---- */
+    /* ---- Print, Transforms, Temp Allocator ---- */
     runtime.alloc = temp_alloc; // string_replace() and base64_encode() will not leak because of temp allocator
 
     print(string_replace(string("This is a string.\n"), string("string"), string("cat")));
@@ -611,7 +639,20 @@ void program() {
         string("atonal music"), 
         base64_encode(password) 
     );
-  
+    
+    print(string("\n"));
+    {
+        s8  z = -1;
+        f32 k =  1;
+        print(
+            string("Binary of -1 (s8) is @, binary of 1.0 (f32) is @.\nBinary of password \"@\" is \n@\n"), 
+            format_binary(data_string(z)), 
+            format_binary(data_string(k)),
+            password,
+            format_binary(password)
+        );
+    }
+
     temp_reset();
     temp_info();
 
