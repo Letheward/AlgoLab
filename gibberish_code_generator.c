@@ -250,28 +250,28 @@ void print_string(String s) {
     for (int i = 0; i < s.count; i++) putchar(s.data[i]);
 }
 
-// todo: not robust, no escape with @, need more testing, deal with switching back allocator
+// todo: not robust, need more testing, handle adjacent items (no space in between)
 void print(String s, ...) {
     
-    void* (*old_alloc)(u64) = runtime.alloc; // ehh....
-    runtime.alloc = temp_alloc;
-    
-    Array(String) chunks = string_split(s, string("@"));
-   
-    runtime.alloc = old_alloc;
-    
-    if (chunks.count < 2) { print_string(s); return; }
-    
-    u64 arg_count = chunks.count - 1;
     va_list args;
     va_start(args, s);
+    
+    for (u64 i = 0; i < s.count; i++) {
 
-    print_string(chunks.data[0]);
-    for (u64 i = 0; i < arg_count; i++) {
-        print_string(va_arg(args, String)); // not safe, but this is C varargs, what can you do 
-        print_string(chunks.data[i + 1]);
+        u8 c = s.data[i];
+        if (c == '@') {
+            if (i + 1 < s.count && s.data[i + 1] == '@') { 
+                putchar('@');
+                i++;
+            } else {
+                print_string(va_arg(args, String)); // not safe, but this is C varargs, what can you do 
+            }
+            continue;
+        }
+
+        putchar(c);
     }
-
+    
     va_end(args);
 }
 

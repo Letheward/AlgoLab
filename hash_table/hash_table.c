@@ -457,37 +457,34 @@ String base64_encode(String in) {
     return (String) {data, count};
 }
 
-// todo: not robust, no escape with @, need more testing
+// basic print
+void print_string(String s) {
+    for (u64 i = 0; i < s.count; i++) putchar(s.data[i]);
+}
+
+// todo: not robust, need more testing, handle adjacent items (no space in between)
 void print(String s, ...) {
-
-    Array(String) chunks = string_split(s, string("@"));
     
-    if (chunks.count < 2) {
-        for (int i = 0; i < s.count; i++) putchar(s.data[i]);
-        return;
+    va_list args;
+    va_start(args, s);
+    
+    for (u64 i = 0; i < s.count; i++) {
+
+        u8 c = s.data[i];
+        if (c == '@') {
+            if (i + 1 < s.count && s.data[i + 1] == '@') { 
+                putchar('@');
+                i++;
+            } else {
+                print_string(va_arg(args, String)); // not safe, but this is C varargs, what can you do 
+            }
+            continue;
+        }
+
+        putchar(c);
     }
     
-    u64 arg_count = chunks.count - 1;
-    String* args_data = temp_alloc(sizeof(String) * arg_count);
-
-    {
-        va_list args;
-        va_start(args, s);
-        for (u64 i = 0; i < arg_count; i++) args_data[i] = va_arg(args, String);
-        va_end(args);
-    }
-
-    String c = chunks.data[0];
-    for (u64 j = 0; j < c.count; j++) putchar(c.data[j]);
-
-    for (u64 i = 0; i < arg_count; i++) {
-        String c   = chunks.data[i + 1];
-        String arg = args_data[i]; 
-        for (u64 j = 0; j < arg.count; j++) putchar(arg.data[j]);
-        for (u64 j = 0; j < c.count;   j++) putchar(c.data[j]);
-    }
-
-    temp_free(sizeof(String) * arg_count);
+    va_end(args);
 }
 
 
