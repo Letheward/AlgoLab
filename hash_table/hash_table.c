@@ -193,6 +193,12 @@ String string_find(String a, String b) {
     return (String) {0};
 }
 
+String string_find_and_skip(String a, String b) {
+    String result = string_find(a, b);
+    if (!result.count) return result; 
+    return (String) {result.data + b.count, result.count - b.count};
+}
+
 String concat(u64 count, ...) {
     
     u64 size = sizeof(String) * count;
@@ -251,32 +257,33 @@ String concat_array(Array(String) strings) {
     return out;
 }
 
-// todo: avoid two loops, handle multiple space, end with separator, etc.
+// todo: cleanup, avoid two loops, handle multiple space, end with separator, etc.
 Array(String) string_split(String s, String separator) {
     
     Array(String) out = {0};
-
-    String pos = s;
-
     u64 count = 1;
-    while (pos.count > 0) {
-        pos = string_find(pos, separator);
-        if (!pos.data) break;
-        pos = string_advance(pos, separator.count);
-        count++;
+    
+    {
+        String pos = s;
+        while (1) {
+            pos = string_find_and_skip(pos, separator);
+            if (!pos.count) break;
+            count++;
+        }
     }
 
-    out.data  = runtime.alloc(sizeof(String) * count);
+    // will still allocate if count is 1
+    out.data  = runtime.alloc(sizeof(String) * count); 
     out.count = count;
-
-    pos = s;
     
-    for (u64 i = 0; i < count; i++) {
-        String new = string_find(pos, separator);
-        if (!new.data) {out.data[i] = pos; break;}
-        out.data[i] = (String) {pos.data, new.data - pos.data};
-        pos = string_advance(new, separator.count);
-    };
+    {
+        String pos = s;
+        for (u64 i = 0; i < count; i++) {
+            String next = string_find(pos, separator);
+            out.data[i] = (String) {pos.data, pos.count - next.count}; // if next.count is 0 then this is the end
+            if (next.count) pos = string_advance(next, separator.count);
+        }
+    }
 
     return out;
 }
