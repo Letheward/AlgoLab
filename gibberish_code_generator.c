@@ -247,7 +247,7 @@ String string_replace(String s, String a, String b) {
 
 // basic print
 void print_string(String s) {
-    for (int i = 0; i < s.count; i++) putchar(s.data[i]);
+    for (u64 i = 0; i < s.count; i++) putchar(s.data[i]);
 }
 
 // todo: not robust, need more testing, handle adjacent items (no space in between)

@@ -138,26 +138,25 @@ void print(String s, ...) {
     for (u64 i = 0; i < s.count; i++) putchar(s.data[i]);
 }
 
-String concat(int count, ...) {
+String concat(u64 count, ...) {
     
-    assert(count <= 32);
     String strings[32];
     {
         va_list args;
         va_start(args, count);
-        for (int i = 0; i < count; i++) strings[i] = va_arg(args, String);
+        for (u64 i = 0; i < count; i++) strings[i] = va_arg(args, String);
         va_end(args);
     }
 
     String out = {0};
-    for (int i = 0; i < count; i++) out.count += strings[i].count;
+    for (u64 i = 0; i < count; i++) out.count += strings[i].count;
 
     out.data = runtime.alloc(out.count);
     
     u64 counter = 0;
-    for (int i = 0; i < count; i++) {
+    for (u64 i = 0; i < count; i++) {
         String s = strings[i];
-        for (int j = 0; j < s.count; j++) {
+        for (u64 j = 0; j < s.count; j++) {
             out.data[counter] = s.data[j];
             counter++;
         }

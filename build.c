@@ -60,7 +60,7 @@ Platform win = {
 
 Compiler gcc = {
     .invoke_name = "gcc",
-    .flags = "-std=c11 -pedantic -Wall -static -fopenmp"
+    .flags = "-std=c11 -pedantic -Wall -Wextra -static -fopenmp"
 };
 
 char* source_files[] = {
@@ -69,7 +69,6 @@ char* source_files[] = {
     "matrix.c",
     "parse.c",
     "pass_by_value.c",
-    "print_data.c",
     "probability.c",
     "macro.c",
     "allocator.c",
@@ -78,6 +77,7 @@ char* source_files[] = {
     "gibberish_code_generator.c",
     "simd.c",
     "combinatorics.c",
+    "rational.c",
     // "string.c", // need input
     // "word.c", // too slow on some terminals (looking at you, Microsoft!)
 };

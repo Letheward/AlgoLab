@@ -98,8 +98,8 @@ int main() {
     }
 
     printf("\n\nResult:\n");
-    for (int i = 0; i < count; i++) {
-        printf("%3d: %12llu\n", i, data[i].hit);
+    for (u64 i = 0; i < count; i++) {
+        printf("%3llu: %12llu\n", i, data[i].hit);
     }
 
 }
