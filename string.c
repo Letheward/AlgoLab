@@ -195,6 +195,7 @@ u64 builder_append(StringBuilder* b, String s) {
 
 /* ==== String: Basic ==== */
 
+// note: not guaranteed to be safe
 String string_advance(String s, u64 p) {
     return (String) {s.data + p, s.count - p};
 }
@@ -327,6 +328,50 @@ String string_replace(String s, String a, String b) {
     String result = string_join(chunks, b);
     return result;
 }
+
+
+
+
+
+/* ==== String: Utils ==== */
+
+// todo: validate
+String string_trim_space_start(String s) {
+    
+    u64 i = 0;
+    while (i < s.count) {
+        switch (s.data[i]) {
+            case ' ': case '\t': case '\n': break;
+            default: goto found;
+        }
+        i++;    
+    }
+    
+    return (String) {0};
+    found: return (String) {s.data + i, s.count - i};
+}
+
+// todo: validate
+String string_trim_space_end(String s) {
+    
+    s64 i = (s64) s.count - 1; // todo: how to make u64 work?
+    while (i >= 0) {
+        switch (s.data[i]) {
+            case ' ': case '\t': case '\n': break;
+            default: goto found;
+        }
+        i--;
+    }
+    
+    return (String) {0};
+    found: return (String) {s.data, (u64) i + 1};
+}
+
+// todo: inline these calls?
+String string_trim_space(String s) {
+    return string_trim_space_end(string_trim_space_start(s));
+}
+
 
 
 
@@ -475,6 +520,22 @@ String base64_encode(String in) {
     return (String) {data, count};
 }
 
+String rot13(String s) {
+    
+    const u8* table = (u8*) "NOPQRSTUVWXYZABCDEFGHIJKLM      nopqrstuvwxyzabcdefghijklm";
+    
+    String out = string_copy(s);
+
+    for (u64 i = 0; i < out.count; i++) {
+        u8 c = out.data[i];
+        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
+            u8 d = c - 'A';        
+            out.data[i] = table[d];
+        }
+    }
+
+    return out;
+}
 
 
 
@@ -629,7 +690,7 @@ void program() {
 
 
     /* ---- Print, Transforms, Temp Allocator ---- */
-    runtime.alloc = temp_alloc; // string_replace() and base64_encode() will not leak because of temp allocator
+    runtime.alloc = temp_alloc; // string_replace() and rot13() will not leak because of temp allocator
 
     print(string_replace(string("This is a string.\n"), string("string"), string("cat")));
     
@@ -637,7 +698,7 @@ void program() {
         string("She is @ meters high, likes @, and has password @.\nHer email is cat@@cat.meow\n"), 
         format_s32(42, 10), 
         string("atonal music"), 
-        base64_encode(password) 
+        rot13(password) 
     );
     
     print(string("\n"));
@@ -652,6 +713,7 @@ void program() {
             format_binary(password)
         );
     }
+    
 
     temp_reset();
     temp_info();
