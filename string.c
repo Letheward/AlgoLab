@@ -354,13 +354,13 @@ String string_trim_space_start(String s) {
 // todo: validate
 String string_trim_space_end(String s) {
     
-    s64 i = (s64) s.count - 1; // todo: how to make u64 work?
-    while (i >= 0) {
+    u64 i = s.count;
+    while (i > 0) {
+        i--;
         switch (s.data[i]) {
             case ' ': case '\t': case '\n': break;
             default: goto found;
         }
-        i--;
     }
     
     return (String) {0};
@@ -713,7 +713,7 @@ void program() {
             format_binary(password)
         );
     }
-    
+
 
     temp_reset();
     temp_info();
