@@ -262,10 +262,10 @@ int main() {
             printf("   %.12f *    %6.12f = %.12f\n\n", fa, fb, fa * fb);
         }
 
-        typedef Rational32 (*Function)(Rational32, Rational32);
+        typedef Rational32 Function(Rational32, Rational32);
 
-        Function funcs[] = {r32_add, r32_sub, r32_mul, r32_div, r32_mod};
-        char*    ops  [] = { " + " ,  " - " ,  " * " ,  " / " ,  " %% "};
+        Function* funcs[] = {r32_add, r32_sub, r32_mul, r32_div, r32_mod};
+        char*     ops  [] = { " + " ,  " - " ,  " * " ,  " / " ,  " %% "};
 
         for (int i = 0; i < 32; i++) {
 
