@@ -484,14 +484,17 @@ String format_binary(String s) {
     return out;
 }
 
-// modified from a [public domain library](https://github.com/badzong/base64/)
+// modified from a public domain library: https://github.com/badzong/base64/
+// todo: validate
 String base64_encode(String in) {
+    
+    if (!in.count || !in.data) return (String) {0};
     
     const u8* table = (u8*) "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
     // allocate buffer
     u64 count = 4 * ((in.count + 2) / 3);
-    u8* data  = runtime.alloc(count);
+    u8* data  = runtime.alloc(count); // we assume this will not fail for now
 
     // convert
     u64 j = 0;
@@ -518,6 +521,78 @@ String base64_encode(String in) {
     }
 
     return (String) {data, count};
+}
+
+// modified from a public domain library: https://github.com/badzong/base64/
+// todo: cleanup, validate, handle more bad inputs
+String base64_decode(String in) {
+
+    if (!in.count || !in.data) return (String) {0};
+	
+    // initialize decode table
+    u8 decode_table[256] = {0};
+    {
+        const u8* table = (u8*) "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        for (u64 i = 0; i < 64; i++) decode_table[table[i]] = i;
+    }
+
+	// remove trailing pad characters count, and compute out_count
+    u64 real_count = in.count;
+    u64 out_count;
+    {
+        u64 i = 0;
+        while (in.data[real_count - i - 1] == '=') i++; // get pad length
+        
+        if (i > 2) real_count -= i - 2;
+        if (real_count % 4) return (String) {0};
+        
+        out_count = (real_count / 4 * 3) - (i > 2 ? 2 : i); // remove at most 2 bytes.
+    }
+    
+    // error check pass, todo: find a better way, and handle more bad inputs
+    {
+        u64 i = 0;
+        while (i < real_count) {
+
+            u32 a = decode_table[(u64) in.data[i++]];
+            u32 b = decode_table[(u64) in.data[i++]];
+            u32 c = decode_table[(u64) in.data[i++]];
+            u32 d = decode_table[(u64) in.data[i++]];
+
+            // if not zeroes at the end
+            if (i != real_count) {
+                if (!a || !b || !c || !d) return (String) {0}; // then they are non-base64 characters
+            }
+        }
+    }
+    
+    u8* data = runtime.alloc(out_count); // we assume this will not fail for now
+
+    u64 i = 0;
+    u64 j = 0;
+	while (i < real_count) {
+
+		u32 a = decode_table[(u64) in.data[i++]];
+		u32 b = decode_table[(u64) in.data[i++]];
+		u32 c = decode_table[(u64) in.data[i++]];
+		u32 d = decode_table[(u64) in.data[i++]];
+
+		// zeroes at the end
+		if (i == real_count) {
+			if (in.data[real_count - 1] == '=') {
+				d = 0;
+				if (in.data[real_count - 2] == '=') c = 0;
+			}
+		}
+
+		u32 triple = (a << 18) + (b << 12) + (c << 6) + d;
+
+		data[j++] = (triple >> 16) & 0xff;
+		data[j++] = (triple >>  8) & 0xff;
+		data[j++] = (triple      ) & 0xff;
+	}
+
+	return (String) {data, out_count};
 }
 
 String rot13(String s) {
@@ -713,7 +788,6 @@ void program() {
             format_binary(password)
         );
     }
-
 
     temp_reset();
     temp_info();
