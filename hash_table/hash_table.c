@@ -199,41 +199,7 @@ String string_find_and_skip(String a, String b) {
     return (String) {result.data + b.count, result.count - b.count};
 }
 
-String concat(u64 count, ...) {
-    
-    u64 size = sizeof(String) * count;
-    Array(String) strings = {
-        .data  = temp_alloc(size),
-        .count = count,
-    };
-
-    String out = {0};
-    {
-        va_list args;
-        va_start(args, count);
-        for (int i = 0; i < count; i++) {
-            String s = va_arg(args, String);
-            strings.data[i] = s;
-            out.count += s.count;
-        }
-        va_end(args);
-    }
-
-    out.data = runtime.alloc(out.count);
-    
-    u64 counter = 0;
-    for (int i = 0; i < count; i++) {
-        String s = strings.data[i];
-        for (int j = 0; j < s.count; j++) {
-            out.data[counter + j] = s.data[j];
-        }
-        counter += s.count;
-    }
-    
-    return out;
-}
-
-String concat_array(Array(String) strings) {
+String string_concat(Array(String) strings) {
     
     u64 count = 0;
     for (u64 i = 0; i < strings.count; i++) {
@@ -312,149 +278,6 @@ String string_replace(String s, String a, String b) {
     if (chunks.count < 2) return s;
     String result = string_join(chunks, b);
     return result;
-}
-
-
-
-
-
-/* ==== String: Formatting ==== */
-
-String format_s32(s32 value, s32 base) {
-
-    u8* table = (u8*) "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ@_";
-
-    if (value == 0) return string("0"); // quick fix, is this fast?
-    if (base < 2 || base > 64) return (String) {0};
-
-    u8 digits[32] = {0}; // todo: speed? just write it to the malloc() buffer?
-    s32 sign = value >> 31;
-    s32 count;
-    {
-        s32 temp = sign ? -value : value;
-        for (count = 0; temp > 0; count++) {
-            digits[count] = table[temp % base]; // what about custom digits?
-            temp /= base;
-        }
-    }
-
-    u8* data = temp_alloc(32);
-    if (sign) {data[0] = '-'; count++;}
-    for (int i = sign ? 1 : 0; i < count; i++) data[i] = digits[count - i - 1];
-
-    return (String) {data, count};
-}
-
-String format_u32(u32 value, s32 base) {
-
-    u8* table = (u8*) "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ@_";
-
-    if (value == 0) return string("0"); // quick fix, is this fast?
-    if (base < 2 || base > 64) return (String) {0};
-
-    u8 digits[32] = {0}; // todo: speed? just write it to the malloc() buffer?
-    s32 count;
-    {
-        u32 temp = value;
-        for (count = 0; temp > 0; count++) {
-            digits[count] = table[temp % base]; // what about custom digits?
-            temp /= base;
-        }
-    }
-
-    u8* data = temp_alloc(32);
-    for (int i = 0; i < count; i++) data[i] = digits[count - i - 1];
-
-    return (String) {data, count};
-}
-
-
-// todo: accuracy issue, handle infinity and NaN
-String format_f32(float value) {
-
-    u8* table = (u8*) "0123456789";
-    
-    u32 data; 
-    {
-        u32 * p = (u32*) &value; // workaround for aliasing warning
-        data = *p; 
-    }
-
-    // get data from IEEE 754 bits
-    int sign = (data >> 31);
-    int exp  = (data << 1 >> 24) - 127 - 23;
-    int frac = (data << 9 >> 9) | 0x800000; // add the implicit "1." in ".1010010"
-
-    u64 temp = frac * 1000000000000; // todo: accuracy 
-
-    if (exp < 0) for (int i = 0; i > exp; i--) temp /= 2;
-    else         for (int i = 0; i < exp; i++) temp *= 2;
-
-    u8 digits[64] = {0};
-    int count; // digit count
-    for (count = 0; temp > 0; count++) {
-        digits[count] = table[temp % 10]; 
-        temp /= 10;
-    }
-    
-    u8* result = temp_alloc(64);
-    u64 result_count = 0;
-    
-    if (sign) result[0] = '-';
-    int dot_pos = count - 12; // todo: find out why it's 12
-    
-    if (dot_pos <= 0) {
-        result_count = count - dot_pos + 2 + sign;
-        result[sign    ] = '0'; 
-        result[sign + 1] = '.';
-        for (int i = 0; i < -dot_pos; i++) result[sign + 2 + i] = '0'; 
-        for (int i = 0; i < count; i++) {
-            result[sign - dot_pos + i + 2] = digits[count - i - 1]; 
-        }
-    } else {
-        result_count = count + sign + 1;
-        result[sign + dot_pos] = '.';
-        for (int i =       0; i < dot_pos; i++) result[sign + i    ] = digits[count - i - 1];
-        for (int i = dot_pos; i <   count; i++) result[sign + i + 1] = digits[count - i - 1];
-    }
-
-    return (String) {result, result_count};
-}
-
-// modified from a [public domain library](https://github.com/badzong/base64/)
-String base64_encode(String in) {
-    
-    const u8* table = (u8*) "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-    // allocate buffer
-    u64 count = 4 * ((in.count + 2) / 3);
-    u8* data  = runtime.alloc(count);
-
-    // convert
-    u64 j = 0;
-    for (u64 i = 0; i < in.count; i += 3) {
-        
-        u32 a = in.data[i    ];
-        u32 b = in.data[i + 1];
-        u32 c = in.data[i + 2];
-
-        u32 triple = (a << 16) + (b << 8) + c;
-
-        data[j    ] = table[(triple >> 18) & 0x3f];
-        data[j + 1] = table[(triple >> 12) & 0x3f];
-        data[j + 2] = table[(triple >>  6) & 0x3f];
-        data[j + 3] = table[(triple      ) & 0x3f];
-
-        j += 4;
-    }
-
-    // padding at the end
-    switch (in.count % 3) {
-        case 1: data[j - 2] = '=';
-        case 2: data[j - 1] = '=';
-    }
-
-    return (String) {data, count};
 }
 
 // basic print
@@ -739,19 +562,8 @@ void program() {
     }
     temp_reset();
 
-
-
 //    print_table(table);
 
 
-
-
-
-
-
 }
-
-
-
-
 
