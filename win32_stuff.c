@@ -259,6 +259,21 @@ u64 win32_get_measuring_tick_per_second() {
 
 /* ==== Audio ==== */
 
+typedef struct {
+    
+    IMMDeviceEnumerator* enumerator;
+    IMMDevice*           device;
+    IAudioClient*        audio_client;
+    IAudioRenderClient*  render_client;
+
+    WAVEFORMATEX*        wave_format;
+   
+    u32                  buffer_size;
+    u32                  real_buffer_size;
+    HANDLE               refill_event;
+ 
+} Win32_AudioState;
+
 void win32_print_waveformat_ex(WAVEFORMATEX* f) {
     printf(
         "Format tag:    0x%x\n"
@@ -277,6 +292,193 @@ void win32_print_waveformat_ex(WAVEFORMATEX* f) {
         f->cbSize
     );
 }
+
+void win32_wasapi_usage_ref() {   
+   
+    const CLSID CLSID_MMDeviceEnumerator = {0xbcde0395, 0xe52f, 0x467c, {0x8e, 0x3d, 0xc4, 0x57, 0x92, 0x91, 0x69, 0x2e}};
+    const IID   IID_IMMDeviceEnumerator  = {0xa95664d2, 0x9614, 0x4f35, {0xa7, 0x46, 0xde, 0x8d, 0xb6, 0x36, 0x17, 0xe6}};
+    const IID   IID_IAudioClient         = {0x1cb9ad4c, 0xdbfa, 0x4c32, {0xb1, 0x78, 0xc2, 0xf5, 0x68, 0xa7, 0x03, 0xb2}};
+    const IID   IID_IAudioRenderClient   = {0xf294acfc, 0x3146, 0x4483, {0xa7, 0xbf, 0xad, 0xdc, 0xa7, 0xc2, 0x60, 0xe2}};
+    
+    const s32 buffer_length = 10 * 10000; // 10ms
+    
+    IMMDeviceEnumerator* enumerator;
+    IMMDevice*           device;
+    IAudioClient*        audio_client;
+    IAudioRenderClient*  render_client;
+
+    WAVEFORMATEX*        wave_format;
+   
+    u32 buffer_size;
+    
+    HANDLE refill_event = CreateEventEx(NULL, NULL, 0, EVENT_MODIFY_STATE | SYNCHRONIZE);
+    
+    CoInitialize(NULL);
+    
+    CoCreateInstance(&CLSID_MMDeviceEnumerator, NULL, CLSCTX_INPROC_SERVER, &IID_IMMDeviceEnumerator, (void**) &enumerator);
+    enumerator->lpVtbl->GetDefaultAudioEndpoint(enumerator, eRender, eMultimedia, &device);
+    device->lpVtbl->Activate(device, &IID_IAudioClient, CLSCTX_INPROC_SERVER, NULL, (void**) &audio_client);
+
+    audio_client->lpVtbl->GetMixFormat(audio_client, &wave_format);
+    audio_client->lpVtbl->Initialize(audio_client, AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_NOPERSIST, buffer_length, 0, wave_format, NULL);
+    audio_client->lpVtbl->GetService(audio_client, &IID_IAudioRenderClient, (void**) &render_client);
+    audio_client->lpVtbl->GetBufferSize(audio_client, &buffer_size);
+    audio_client->lpVtbl->SetEventHandle(audio_client, refill_event);
+    
+    // Initial zero fill
+    render_client->lpVtbl->GetBuffer(render_client, buffer_size, NULL); // is this NULL safe?
+    render_client->lpVtbl->ReleaseBuffer(render_client, buffer_size, AUDCLNT_BUFFERFLAGS_SILENT);
+    
+    audio_client->lpVtbl->Start(audio_client);
+    
+    printf("Buffer Size: %u\n", buffer_size);
+    win32_print_waveformat_ex(wave_format);
+
+    f32 delta_phase = 440.0 * TAU / wave_format->nSamplesPerSec;
+    f32 phase = 0.0;
+    
+    u32 channel_count = wave_format->nChannels;
+
+    while (1) {
+       
+        u32 e = WaitForSingleObject(refill_event, INFINITE);
+
+        switch (e) {
+
+            case WAIT_OBJECT_0: // refill_event
+            {
+                u32 padding;
+                audio_client->lpVtbl->GetCurrentPadding(audio_client, &padding);
+
+                u32 available = buffer_size - padding;
+                
+                f32* out;
+                render_client->lpVtbl->GetBuffer(render_client, available, (u8**) &out);
+                
+                for (u32 i = 0; i < available; i++) {
+                    
+                    f32 v = sinf(phase) * 0.1;
+                    phase += delta_phase;
+                    
+                    for (u32 j = 0; j < channel_count; j++) {
+                        *out = v;
+                        out++;
+                    }
+                }
+                
+                render_client->lpVtbl->ReleaseBuffer(render_client, available, 0);
+                
+                break;
+            }
+
+            default: break;
+        }
+    }
+    
+    audio_client->lpVtbl->Stop(audio_client);
+
+    CoTaskMemFree(wave_format);
+    enumerator   ->lpVtbl->Release(enumerator);
+    device       ->lpVtbl->Release(device);
+    audio_client ->lpVtbl->Release(audio_client);
+    render_client->lpVtbl->Release(render_client);
+
+    CoUninitialize();
+}
+
+void win32_init_wasapi(Win32_AudioState* state, s32 buffer_length) {
+
+    const CLSID CLSID_MMDeviceEnumerator = {0xbcde0395, 0xe52f, 0x467c, {0x8e, 0x3d, 0xc4, 0x57, 0x92, 0x91, 0x69, 0x2e}};
+    const IID   IID_IMMDeviceEnumerator  = {0xa95664d2, 0x9614, 0x4f35, {0xa7, 0x46, 0xde, 0x8d, 0xb6, 0x36, 0x17, 0xe6}};
+    const IID   IID_IAudioClient         = {0x1cb9ad4c, 0xdbfa, 0x4c32, {0xb1, 0x78, 0xc2, 0xf5, 0x68, 0xa7, 0x03, 0xb2}};
+    const IID   IID_IAudioRenderClient   = {0xf294acfc, 0x3146, 0x4483, {0xa7, 0xbf, 0xad, 0xdc, 0xa7, 0xc2, 0x60, 0xe2}};
+    
+    IMMDeviceEnumerator* enumerator;
+    IMMDevice*           device;
+    IAudioClient*        audio_client;
+    IAudioRenderClient*  render_client;
+
+    WAVEFORMATEX*        wave_format;
+   
+    u32 buffer_size;
+    u32 padding;
+    
+    HANDLE refill_event = CreateEventEx(NULL, NULL, 0, EVENT_MODIFY_STATE | SYNCHRONIZE);
+    
+    CoCreateInstance(&CLSID_MMDeviceEnumerator, NULL, CLSCTX_INPROC_SERVER, &IID_IMMDeviceEnumerator, (void**) &enumerator);
+    enumerator->lpVtbl->GetDefaultAudioEndpoint(enumerator, eRender, eMultimedia, &device);
+    device->lpVtbl->Activate(device, &IID_IAudioClient, CLSCTX_INPROC_SERVER, NULL, (void**) &audio_client);
+
+    audio_client->lpVtbl->GetMixFormat(audio_client, &wave_format);
+    audio_client->lpVtbl->Initialize(audio_client, AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_NOPERSIST, buffer_length, 0, wave_format, NULL);
+    audio_client->lpVtbl->GetService(audio_client, &IID_IAudioRenderClient, (void**) &render_client);
+    audio_client->lpVtbl->GetBufferSize(audio_client, &buffer_size);
+    audio_client->lpVtbl->SetEventHandle(audio_client, refill_event);
+    
+    // Initial zero fill
+    render_client->lpVtbl->GetBuffer(render_client, buffer_size, NULL); // is this NULL safe?
+    render_client->lpVtbl->ReleaseBuffer(render_client, buffer_size, AUDCLNT_BUFFERFLAGS_SILENT);
+    
+    audio_client->lpVtbl->Start(audio_client);
+    
+    audio_client->lpVtbl->GetCurrentPadding(audio_client, &padding);
+
+    printf("Buffer Size: %u\n", buffer_size);
+    win32_print_waveformat_ex(wave_format);
+    
+    *state = (Win32_AudioState) {
+        .enumerator    = enumerator,
+        .device        = device,
+        .audio_client  = audio_client,
+        .render_client = render_client,
+        .wave_format   = wave_format,
+       
+        .buffer_size      = buffer_size,
+        .real_buffer_size = 0,           // silence the first upload. todo: how to solve this better?  
+        .refill_event     = refill_event,
+    };
+}
+
+void win32_upload_audio_buffer(Win32_AudioState* state, f32* data, u64 count) {
+    
+    u32 e = WaitForSingleObject(state->refill_event, INFINITE);
+    u32 channel_count = state->wave_format->nChannels;
+
+    switch (e) {
+
+        case WAIT_OBJECT_0: // refill_event
+        {
+            u32 padding;
+            state->audio_client->lpVtbl->GetCurrentPadding(state->audio_client, &padding);
+
+            u32 available = state->buffer_size - padding;
+            state->real_buffer_size = available; // todo: 1 upload lag, how to solve this?
+            
+            f32* out;
+            state->render_client->lpVtbl->GetBuffer(state->render_client, available, (u8**) &out);
+            
+            for (u32 i = 0; i < count && i < available * channel_count; i++) out[i] = data[i]; // copy the buffer
+            
+            state->render_client->lpVtbl->ReleaseBuffer(state->render_client, available, 0);
+            
+            break;
+        }
+
+        default: break;
+    }
+}
+
+void win32_shutdown_wasapi(Win32_AudioState* state) {
+    
+    state->audio_client->lpVtbl->Stop(state->audio_client);
+
+    CoTaskMemFree(state->wave_format);
+    state->enumerator   ->lpVtbl->Release(state->enumerator);
+    state->device       ->lpVtbl->Release(state->device);
+    state->audio_client ->lpVtbl->Release(state->audio_client);
+    state->render_client->lpVtbl->Release(state->render_client);
+}
+
 
 
 
@@ -332,103 +534,42 @@ void time_test() {
 }
 
 void wasapi_test() {
+    
+    const u32 wanted_buffer_size = 10 * 10000; // 10ms
+    
+    Win32_AudioState audio_state;
 
-    const CLSID CLSID_MMDeviceEnumerator = {0xbcde0395, 0xe52f, 0x467c, {0x8e, 0x3d, 0xc4, 0x57, 0x92, 0x91, 0x69, 0x2e}};
-    const IID   IID_IMMDeviceEnumerator  = {0xa95664d2, 0x9614, 0x4f35, {0xa7, 0x46, 0xde, 0x8d, 0xb6, 0x36, 0x17, 0xe6}};
-    const IID   IID_IAudioClient         = {0x1cb9ad4c, 0xdbfa, 0x4c32, {0xb1, 0x78, 0xc2, 0xf5, 0x68, 0xa7, 0x03, 0xb2}};
-    const IID   IID_IAudioRenderClient   = {0xf294acfc, 0x3146, 0x4483, {0xa7, 0xbf, 0xad, 0xdc, 0xa7, 0xc2, 0x60, 0xe2}};
-    
-    const int buffer_length = 10 * 10000; // 10ms
-    
-    IMMDeviceEnumerator* enumerator;
-    IMMDevice*           device;
-    IAudioClient*        audio_client;
-    IAudioRenderClient*  render_client;
-
-    WAVEFORMATEX*        wave_format;
-
-    HANDLE refill_event = CreateEventEx(NULL, NULL, 0, EVENT_MODIFY_STATE | SYNCHRONIZE);
-    HANDLE events[1] = { refill_event };
-    
-    u32 buffer_size;
-    
     CoInitialize(NULL);
+    win32_init_wasapi(&audio_state, wanted_buffer_size);
+
+    u32 sample_rate = audio_state.wave_format->nSamplesPerSec;
+    u32 channel_count = audio_state.wave_format->nChannels;
+
+    f32* buffer = malloc(sizeof(f32) * sample_rate * channel_count); // we assume this will be large than buffer size * channel count for now   
     
-    CoCreateInstance(&CLSID_MMDeviceEnumerator, NULL, CLSCTX_INPROC_SERVER, &IID_IMMDeviceEnumerator, (void**) &enumerator);
-    enumerator->lpVtbl->GetDefaultAudioEndpoint(enumerator, eRender, eMultimedia, &device);
-    device->lpVtbl->Activate(device, &IID_IAudioClient, CLSCTX_INPROC_SERVER, NULL, (void**) &audio_client);
-    
-    audio_client->lpVtbl->GetMixFormat(audio_client, &wave_format);
-    audio_client->lpVtbl->Initialize(audio_client, AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_NOPERSIST, buffer_length, 0, wave_format, NULL);
-    audio_client->lpVtbl->GetService(audio_client, &IID_IAudioRenderClient, (void**) &render_client);
-    audio_client->lpVtbl->GetBufferSize(audio_client, &buffer_size);
-    audio_client->lpVtbl->SetEventHandle(audio_client, refill_event);
-    
-    printf("Buffer Size: %u\n", buffer_size);
-    win32_print_waveformat_ex(wave_format);
-    
-    const float delta_phase = 440.0 * TAU / wave_format->nSamplesPerSec;
-    float phase = 0.0;
-    
-    u32 channel_count = wave_format->nChannels;
-    
-    // Initial zero fill
-    {
-        u8* data;
-        render_client->lpVtbl->GetBuffer(render_client, buffer_size, &data);
-        render_client->lpVtbl->ReleaseBuffer(render_client, buffer_size, AUDCLNT_BUFFERFLAGS_SILENT);
-    }
-    
-    audio_client->lpVtbl->Start(audio_client);
-    
+    f32 delta_phase = 440.0 * TAU / sample_rate;
+    f32 phase = 0.0;
+
     while (1) {
         
-        u32 e = WaitForMultipleObjects(1, events, FALSE, INFINITE);
-
-        switch (e) {
-
-            case WAIT_OBJECT_0: // refill_event
-            {
-                u32 padding;
-                audio_client->lpVtbl->GetCurrentPadding(audio_client, &padding);
-
-                u32 available = buffer_size - padding;
-                
-                f32* data;
-                render_client->lpVtbl->GetBuffer(render_client, available, (u8**) &data);
-
-                for (u32 i = 0; i < available; i++) {
-                    
-                    f32 v = sinf(phase) * 0.25;
-                    phase += delta_phase;
-                    
-                    for (u32 j = 0; j < channel_count; j++) {
-                        *data = v;
-                        data++;
-                    }
-                }
-                
-                render_client->lpVtbl->ReleaseBuffer(render_client, available, 0);
-                
-                break;
+        u32 buffer_size = audio_state.real_buffer_size;
+        
+        for (u64 i = 0; i < buffer_size; i++) {
+            
+            f32 v = sinf(phase) * 0.1;
+            phase += delta_phase;
+            
+            for (u32 j = 0; j < channel_count; j++) {
+                buffer[i * channel_count + j] = v;
             }
-
-            default: break;
         }
+       
+        win32_upload_audio_buffer(&audio_state, buffer, buffer_size * channel_count);
     }
-    
-    audio_client->lpVtbl->Stop(audio_client);
 
-    CoTaskMemFree(wave_format);
-    enumerator   ->lpVtbl->Release(enumerator);
-    device       ->lpVtbl->Release(device);
-    audio_client ->lpVtbl->Release(audio_client);
-    render_client->lpVtbl->Release(render_client);
-
+    win32_shutdown_wasapi(&audio_state);
     CoUninitialize();
 }
-
-
 
 
 /*
@@ -449,7 +590,7 @@ int main() {
     file_test();    
     time_test();
     /*/
-
+    
     wasapi_test();
 
 }
