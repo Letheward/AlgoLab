@@ -42,6 +42,13 @@ void win32_check_hresult(HRESULT result) {
     }
 }
 
+void win32_print_guid(GUID* id) {
+    printf("%.8lx ", id->Data1);
+    printf("%.4x ",  id->Data2);
+    printf("%.4x ",  id->Data3);
+    for (int i = 0; i < 8; i++) printf("%.2x ", id->Data4[i]);
+    printf("\n");
+}
 
 
 
@@ -443,8 +450,14 @@ void win32_init_wasapi(Win32_AudioState* state, s32 buffer_length) {
         }
     }
 
-    printf("Buffer Size: %u %u\n", buffer_size, real_buffer_size);
+    printf("Buffer Size:   %u %u\n", buffer_size, real_buffer_size);
     win32_print_waveformat_ex(wave_format);
+    if (wave_format->wFormatTag == WAVE_FORMAT_EXTENSIBLE) {
+        WAVEFORMATEXTENSIBLE* format = (WAVEFORMATEXTENSIBLE*) wave_format;
+        printf("Mask:          0x%lx\n", format->dwChannelMask);
+        printf("Format GUID:   ");
+        win32_print_guid(&format->SubFormat);
+    }
     
     *state = (Win32_AudioState) {
         .enumerator       = enumerator,
