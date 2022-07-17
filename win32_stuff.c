@@ -267,11 +267,13 @@ typedef struct {
     IAudioRenderClient*  render_client;
 
     WAVEFORMATEX*        wave_format;
+    HANDLE               refill_event;
    
     u32                  buffer_size;
     u32                  real_buffer_size;
-    HANDLE               refill_event;
- 
+    u32                  sample_rate;  
+    u32                  channel_count;
+
 } Win32_AudioState;
 
 void win32_print_waveformat_ex(WAVEFORMATEX* f) {
@@ -401,7 +403,7 @@ void win32_init_wasapi(Win32_AudioState* state, s32 buffer_length) {
     WAVEFORMATEX*        wave_format;
    
     u32 buffer_size;
-    u32 padding;
+    u32 real_buffer_size;
     
     HANDLE refill_event = CreateEventEx(NULL, NULL, 0, EVENT_MODIFY_STATE | SYNCHRONIZE);
     
@@ -414,57 +416,72 @@ void win32_init_wasapi(Win32_AudioState* state, s32 buffer_length) {
     audio_client->lpVtbl->GetService(audio_client, &IID_IAudioRenderClient, (void**) &render_client);
     audio_client->lpVtbl->GetBufferSize(audio_client, &buffer_size);
     audio_client->lpVtbl->SetEventHandle(audio_client, refill_event);
-    
-    // Initial zero fill
-    render_client->lpVtbl->GetBuffer(render_client, buffer_size, NULL); // is this NULL safe?
+
+    // initial zero fill
+    render_client->lpVtbl->GetBuffer(render_client, buffer_size, NULL); 
     render_client->lpVtbl->ReleaseBuffer(render_client, buffer_size, AUDCLNT_BUFFERFLAGS_SILENT);
     
     audio_client->lpVtbl->Start(audio_client);
-    
-    audio_client->lpVtbl->GetCurrentPadding(audio_client, &padding);
+     
+    // this is to get the padding right
+    for (int i = 0; i < 2; i++) {
 
-    printf("Buffer Size: %u\n", buffer_size);
+        u32 e = WaitForSingleObject(refill_event, INFINITE);
+        
+        if (e == WAIT_OBJECT_0) {
+            
+            u32 padding;
+            audio_client->lpVtbl->GetCurrentPadding(audio_client, &padding);
+
+            u32 available = buffer_size - padding;
+           
+            f32* data;
+            render_client->lpVtbl->GetBuffer(render_client, available, (u8**) &data); 
+            render_client->lpVtbl->ReleaseBuffer(render_client, available, AUDCLNT_BUFFERFLAGS_SILENT);
+            
+            real_buffer_size = available;
+        }
+    }
+
+    printf("Buffer Size: %u %u\n", buffer_size, real_buffer_size);
     win32_print_waveformat_ex(wave_format);
     
     *state = (Win32_AudioState) {
-        .enumerator    = enumerator,
-        .device        = device,
-        .audio_client  = audio_client,
-        .render_client = render_client,
-        .wave_format   = wave_format,
+        .enumerator       = enumerator,
+        .device           = device,
+        .audio_client     = audio_client,
+        .render_client    = render_client,
+        .wave_format      = wave_format,
        
-        .buffer_size      = buffer_size,
-        .real_buffer_size = 0,           // silence the first upload. todo: how to solve this better?  
         .refill_event     = refill_event,
+        
+        .buffer_size      = buffer_size,
+        .real_buffer_size = real_buffer_size,             
+        .sample_rate      = wave_format->nSamplesPerSec,
+        .channel_count    = wave_format->nChannels,
     };
 }
 
 void win32_upload_audio_buffer(Win32_AudioState* state, f32* data, u64 count) {
     
     u32 e = WaitForSingleObject(state->refill_event, INFINITE);
-    u32 channel_count = state->wave_format->nChannels;
+    u32 channel_count = state->channel_count;
 
-    switch (e) {
+    // refill_event
+    if (e == WAIT_OBJECT_0) {
 
-        case WAIT_OBJECT_0: // refill_event
-        {
-            u32 padding;
-            state->audio_client->lpVtbl->GetCurrentPadding(state->audio_client, &padding);
+        u32 padding;
+        state->audio_client->lpVtbl->GetCurrentPadding(state->audio_client, &padding);
 
-            u32 available = state->buffer_size - padding;
-            state->real_buffer_size = available; // todo: 1 upload lag, how to solve this?
-            
-            f32* out;
-            state->render_client->lpVtbl->GetBuffer(state->render_client, available, (u8**) &out);
-            
-            for (u32 i = 0; i < count && i < available * channel_count; i++) out[i] = data[i]; // copy the buffer
-            
-            state->render_client->lpVtbl->ReleaseBuffer(state->render_client, available, 0);
-            
-            break;
-        }
-
-        default: break;
+        u32 available = state->buffer_size - padding;
+        state->real_buffer_size = available; // todo: if this actually changes, how to handle that?
+        
+        f32* out;
+        state->render_client->lpVtbl->GetBuffer(state->render_client, available, (u8**) &out);
+        
+        for (u32 i = 0; i < count && i < available * channel_count; i++) out[i] = data[i]; // copy the buffer
+        
+        state->render_client->lpVtbl->ReleaseBuffer(state->render_client, available, 0);
     }
 }
 
@@ -478,9 +495,6 @@ void win32_shutdown_wasapi(Win32_AudioState* state) {
     state->audio_client ->lpVtbl->Release(state->audio_client);
     state->render_client->lpVtbl->Release(state->render_client);
 }
-
-
-
 
 
 
@@ -542,13 +556,15 @@ void wasapi_test() {
     CoInitialize(NULL);
     win32_init_wasapi(&audio_state, wanted_buffer_size);
 
-    u32 sample_rate = audio_state.wave_format->nSamplesPerSec;
-    u32 channel_count = audio_state.wave_format->nChannels;
+    u32 sample_rate   = audio_state.sample_rate;
+    u32 channel_count = audio_state.channel_count;
 
     f32* buffer = malloc(sizeof(f32) * sample_rate * channel_count); // we assume this will be large than buffer size * channel count for now   
     
     f32 delta_phase = 440.0 * TAU / sample_rate;
-    f32 phase = 0.0;
+
+    f32 phase  = 0;
+    f32 volume = 0.1;
 
     while (1) {
         
@@ -556,7 +572,7 @@ void wasapi_test() {
         
         for (u64 i = 0; i < buffer_size; i++) {
             
-            f32 v = sinf(phase) * 0.1;
+            f32 v = sinf(phase) * volume;
             phase += delta_phase;
             
             for (u32 j = 0; j < channel_count; j++) {
