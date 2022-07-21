@@ -122,6 +122,8 @@ void error(char* s, ...) {
     printf("[Error] ");
     vprintf(s, va);
 
+    va_end(va);
+
     exit(1); 
 }
 
