@@ -614,6 +614,170 @@ String rot13(String s) {
     return out;
 }
 
+// todo: validate
+String rle64_encode(String s) {
+    
+    if (!s.count || !s.data) return (String) {0};
+    
+    // first pass    
+    u64 item_count = 1;
+    {
+        u64 current_count = 0;
+        u8  current = s.data[0];
+        for (u64 i = 0; i < s.count; i++) {
+            u8 c = s.data[i];
+            if (current != c) {
+                current = c;
+                current_count = 1;
+                item_count++;
+            } else {
+                current_count++;
+            }
+        }
+    }
+    
+    u64 byte_count = item_count * (sizeof(u8) + sizeof(u64));
+    String out = {runtime.alloc(byte_count), byte_count};
+
+    // second pass    
+    {
+        u64 current_count = 0;
+        u8  current = s.data[0];
+        u64 acc = 0;
+        for (u64 i = 0; i < s.count; i++) {
+            u8 c = s.data[i];
+            if (current != c) {
+                
+                out.data[acc]              = current;
+                *(u64*) &out.data[acc + 1] = current_count;
+                acc += sizeof(u8) + sizeof(u64);
+
+                current = c;
+                current_count = 1;
+
+            } else {
+                current_count++;
+            }
+        }
+        
+        // todo: figure out better ways
+        out.data[acc]              = current;
+        *(u64*) &out.data[acc + 1] = current_count;
+        acc += sizeof(u8) + sizeof(u64);
+    }
+
+    return out;
+}
+
+// todo: validate
+String rle8_encode(String s) {
+    
+    if (!s.count || !s.data) return (String) {0};
+    
+    // first pass    
+    u64 item_count = 1;
+    {
+        u64 current_count = 0;
+        u8  current = s.data[0];
+        for (u64 i = 0; i < s.count; i++) {
+            u8 c = s.data[i];
+            if (current != c || current_count == 255) {
+                current = c;
+                current_count = 1;
+                item_count++;
+            } else {
+                current_count++;
+            }
+        }
+    }
+    
+    u64 byte_count = item_count * (sizeof(u8) + sizeof(u8));
+    String out = {runtime.alloc(byte_count), byte_count};
+
+    // second pass    
+    {
+        u64 current_count = 0;
+        u8  current = s.data[0];
+        u64 acc = 0;
+        for (u64 i = 0; i < s.count; i++) {
+            u8 c = s.data[i];
+            if (current != c || current_count == 255) {
+                
+                out.data[acc]     = current;
+                out.data[acc + 1] = (u8) current_count;
+                acc += sizeof(u8) + sizeof(u8);
+
+                current = c;
+                current_count = 1;
+
+            } else {
+                current_count++;
+            }
+        }
+        
+        // todo: figure out better ways
+        out.data[acc]     = current;
+        out.data[acc + 1] = (u8) current_count;
+        acc += sizeof(u8) + sizeof(u8);
+    }
+
+    return out;
+}
+
+// todo: validate
+String rle64_decode(String s) {
+    
+    if (!s.count || !s.data) return (String) {0};
+    
+    u64 total_count = 0;
+    for (u64 i = 0; i < s.count; i += sizeof(u8) + sizeof(u64)) {
+        u64 count = *(u64*) &s.data[i + 1];
+        total_count += count;
+    }
+
+    String out = {runtime.alloc(total_count), total_count};
+    
+    u64 acc = 0;
+    for (u64 i = 0; i < s.count; i += sizeof(u8) + sizeof(u64)) {
+        u8  c     = s.data[i];
+        u64 count = *(u64*) &s.data[i + 1];
+        for (u64 j = 0; j < count; j++) {
+            out.data[acc] = c;
+            acc++;
+        }
+    }
+    
+    return out;
+}
+
+// todo: validate
+String rle8_decode(String s) {
+    
+    if (!s.count || !s.data) return (String) {0};
+    
+    u64 total_count = 0;
+    for (u64 i = 0; i < s.count; i += sizeof(u8) + sizeof(u8)) {
+        u64 count = s.data[i + 1];
+        total_count += count;
+    }
+
+    String out = {runtime.alloc(total_count), total_count};
+    
+    u64 acc = 0;
+    for (u64 i = 0; i < s.count; i += sizeof(u8) + sizeof(u8)) {
+        u8 c     = s.data[i];
+        u8 count = s.data[i + 1];
+        for (u8 j = 0; j < count; j++) {
+            out.data[acc] = c;
+            acc++;
+        }
+    }
+    
+    return out;
+}
+
+
+
 
 
 
@@ -634,7 +798,7 @@ void print(String s, ...) {
 
         u8 c = s.data[i];
         if (c == '@') {
-            if (i + 1 < s.count && s.data[i + 1] == '@') { 
+            if (i + 1 < s.count && s.data[i + 1] == '@') { // short circuit 
                 putchar('@');
                 i++;
             } else {
@@ -738,7 +902,7 @@ int main(int arg_count, char** args) {
 /* ==== Main Program ==== */
 
 void program() {
-
+    
 
     /* ---- Input ---- */
     
