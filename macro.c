@@ -67,7 +67,7 @@ typedef struct {                  \
 
 /* ==== Strings ==== */
 
-void print(String s) {
+void print_string(String s) {
     for (u64 i = 0; i < s.count; i++) putchar(s.data[i]);
 }
 
@@ -78,9 +78,9 @@ void string_test() {
     u8  a[] = {87, 111, 114, 108, 100, 33, 10};
     u32 b   = 0x74736554;
 
-    print(string("Hello "));
-    print(array_string(a));
-    print(data_string(b));
+    print_string(string("Hello "));
+    print_string(array_string(a));
+    print_string(data_string(b));
 
     printf("\n\n");
 }
@@ -155,7 +155,7 @@ void nested_types() {
 
 /* ==== Safe Varargs ==== */
 
-// Note: Do not actually use this.
+// Note: Do not actually use this. The error/warning messages are pretty bad, and when things go wrong in the macro, it's very hard to debug.
 // Just make array functions and write stack array manually at call site (then it can also return values)
 
 #define macro_internal(name)  __do_not_use__macro_internal__ ## name
@@ -175,6 +175,38 @@ void add_s32_helper(s32* data, u64 count) {
 }
 
 
+// note: this won't work when no varags are given
+#define print(s, ...)                                                               \
+{                                                                                   \
+    String macro_internal(args)[] = {__VA_ARGS__};                                  \
+    print_helper(string(s), macro_internal(args), length_of(macro_internal(args))); \
+}                                                                                   \
+
+void print_helper(String s, String* data, u64 count) {
+    
+    u64 acc = 0; 
+    for (u64 i = 0; i < s.count; i++) {
+
+        u8 c = s.data[i];
+        if (c == '@') {
+            if (i + 1 < s.count && s.data[i + 1] == '@') { // short circuit 
+                putchar('@');
+                i++;
+            } else {
+                if (acc >= count) continue; // simple safety check, we can also just return here to indicate the error
+                print_string(data[acc]); 
+                acc++;
+            }
+            continue;
+        }
+
+        putchar(c);
+    }
+}
+
+
+
+
 // test
 void safe_varargs() {
 
@@ -182,9 +214,12 @@ void safe_varargs() {
 
     add_s32(1, 2, 3);
     add_s32(1, 2, 3, 4, 5);
-    // add_s32(1, 2, 3, 4, "this will give warning");
 
-    printf("\n");
+    // notice the count of '@' does not match varargs count, but we didn't crash here
+    print("Print @ @ @ @ using varargs.\n\n", string("some"), string("string")); 
+    
+    // add_s32(1, 2, 3, 4, "this will give warning");
+    // print("this will give warning", 42);
 }
 
 
@@ -232,43 +267,42 @@ void array_add_ ## Type(DynamicArray(Type)* a, Type item) {                     
     a->base.count = wanted;                                                      \
 }                                                                                \
 
-#define Define_selection_sort(Type)                                            \
-void selection_sort_ ## Type (Array(Type) in, u8 (*compare)(Type a, Type b)) { \
+#define Define_insertion_sort(Type)                                            \
+void insertion_sort_ ## Type (Array(Type) in, u8 (*compare)(Type a, Type b)) { \
                                                                                \
-    for (u64 i = 0; i < in.count - 1; i++) {                                   \
+    if (in.count < 2) return;                                                  \
                                                                                \
-        u64 min = i;                                                           \
-        for (u64 j = i + 1; j < in.count; j++) {                               \
-            if (compare(in.data[j], in.data[min]))  min = j;                   \
+    for (u64 i = 1; i < in.count; i++) {                                       \
+                                                                               \
+        Type key = in.data[i];                                                 \
+                                                                               \
+        u64 j = i;                                                             \
+        while (j > 0 && compare(key, in.data[j - 1])) {                        \
+            in.data[j] = in.data[j - 1];                                       \
+            j--;                                                               \
         }                                                                      \
                                                                                \
-        if (min != i) {                                                        \
-            Type a = in.data[i  ];                                             \
-            Type b = in.data[min];                                             \
-            in.data[i  ] = b;                                                  \
-            in.data[min] = a;                                                  \
-        }                                                                      \
+        in.data[j] = key;                                                      \
     }                                                                          \
 }                                                                              \
-
 
 #define array_add(T, V) _Generic((T),         \
     DynamicArray(s32)*    : array_add_s32,    \
     DynamicArray(f32)*    : array_add_f32,    \
     DynamicArray(String)* : array_add_String  \
-)(T, V);                                      \
+)(T, V)                                       \
 
-#define selection_sort(T, C) _Generic((T), \
-    Array(s32)    : selection_sort_s32,    \
-    Array(f32)    : selection_sort_f32,    \
-    Array(String) : selection_sort_String  \
-)(T, C);                                   \
+#define insertion_sort(T, C) _Generic((T), \
+    Array(s32)    : insertion_sort_s32,    \
+    Array(f32)    : insertion_sort_f32,    \
+    Array(String) : insertion_sort_String  \
+)(T, C)                                    \
 
 #define print_array(T) _Generic((T),   \
     Array(s32)    : print_array_s32,   \
     Array(f32)    : print_array_f32,   \
     Array(String) : print_array_String \
-)(T);                                  \
+)(T)                                   \
 
 void print_array_s32(Array(s32) a) {
     for (u64 i = 0; i < a.count; i++) printf("%d ", a.data[i]);
@@ -282,7 +316,7 @@ void print_array_f32(Array(f32) a) {
 
 void print_array_String(Array(String) a) {
     for (u64 i = 0; i < a.count; i++) {
-        print(a.data[i]);
+        print_string(a.data[i]);
         printf("\n");
     }
 }
@@ -296,9 +330,9 @@ Define_array_init(s32)
 Define_array_init(f32)
 Define_array_init(String)
 
-Define_selection_sort(s32)
-Define_selection_sort(f32)
-Define_selection_sort(String)
+Define_insertion_sort(s32)
+Define_insertion_sort(f32)
+Define_insertion_sort(String)
 
 
 u8 string_compare_length(String a, String b) {
@@ -326,11 +360,13 @@ void dynamic_array_and_generics() {
     for (int i = 0; i < 128; i++) array_add(&a, rand() % 128);
     for (int i = 0; i <  5; i++)  array_add(&b, (f32) rand() / (f32) rand());
 
-    array_add(&c, string("Help!!! "));
-    array_add(&c, string("I'm "));
-    array_add(&c, string("stuck in "));
-    array_add(&c, string("the programming "));
+    array_add(&c, string("Help!!!"));
+    array_add(&c, string("I'm"));
+    array_add(&c, string("stuck in"));
+    array_add(&c, string("the programming"));
     array_add(&c, string("language C!!!"));
+    array_add(&c, string("And I'm trying to do some"));
+    array_add(&c, string("high level stuff!!!"));
     
     print_array(a.base);
     print_array(b.base);
@@ -338,9 +374,9 @@ void dynamic_array_and_generics() {
 
     printf("\n");
 
-    selection_sort(a.base, s32_compare_ascend);
-    selection_sort(b.base, f32_compare_ascend);
-    selection_sort(c.base, string_compare_length);
+    insertion_sort(a.base, s32_compare_ascend);
+    insertion_sort(b.base, f32_compare_ascend);
+    insertion_sort(c.base, string_compare_length);
     
     print_array(a.base);
     print_array(b.base);
@@ -363,10 +399,8 @@ See:
 */
 
 
-
-
 int main() {
-    
+
     string_test();
     raw_bits_and_type_punning();
     nested_types();   

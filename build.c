@@ -99,8 +99,9 @@ void compile_and_run(Platform p, Compiler c, char* src) {
     printf("[Command] \n%s\n", command);
     printf("[Output]\n");
 
-    int result = system(command);
-    printf("%s\n\n", result ? "[Fail]" : "[Pass]");
+    int error = system(command);
+    printf("%s\n\n", error ? "[Fail]" : "[Pass]");
+    if (error) exit(1);
 
     free(command);
 }
